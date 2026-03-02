@@ -1,36 +1,149 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dance Calendar
+
+A mobile-first dance event calendar website where event organizers can add their events and dancers can discover what's happening in their area.
+
+## Features
+
+- **Mobile-First Design**: Swipeable calendar with week and month views optimized for touch
+- **Event Management**: Organizers can create, edit, and manage dance events
+- **Conflict Detection**: Real-time warnings when events overlap in the same city/venue
+- **Recurring Events**: Support for daily, weekly, bi-weekly, and monthly recurring events
+- **Email Notifications**: Automated notifications for new events and reminders
+- **Admin Approval**: Organizer accounts require admin approval before posting
+- **PWA Support**: Install as an app with offline access
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, Tailwind CSS 4, shadcn/ui
+- **Backend**: Next.js API Routes, Prisma ORM
+- **Database**: PostgreSQL (Vercel Postgres)
+- **Authentication**: NextAuth.js v5
+- **Email**: Resend
+- **Deployment**: Vercel
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- PostgreSQL database
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd dance-calendar
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Edit `.env` with your configuration:
+```env
+DATABASE_URL="postgresql://..."
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-secret-key"
+RESEND_API_KEY="re_..."
+EMAIL_FROM="Dance Calendar <noreply@yourdomain.com>"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+CRON_SECRET="your-cron-secret"
+```
 
-## Learn More
+4. Set up the database:
+```bash
+npx prisma db push
+```
 
-To learn more about Next.js, take a look at the following resources:
+5. Run the development server:
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment to Vercel
 
-## Deploy on Vercel
+1. Push your code to GitHub
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. Import the project in Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. Add environment variables in Vercel dashboard:
+   - `DATABASE_URL` - Your Vercel Postgres connection string
+   - `DIRECT_URL` - Direct database connection (for migrations)
+   - `NEXTAUTH_URL` - Your production URL
+   - `NEXTAUTH_SECRET` - Generate with `openssl rand -base64 32`
+   - `RESEND_API_KEY` - From Resend dashboard
+   - `EMAIL_FROM` - Your verified sender email
+   - `NEXT_PUBLIC_APP_URL` - Your production URL
+   - `CRON_SECRET` - Generate a secure random string
+
+4. Deploy!
+
+## Creating an Admin User
+
+After deployment, create your first admin user:
+
+1. Register a new account
+2. Connect to your database and run:
+```sql
+UPDATE "User" SET role = 'ADMIN', verified = true WHERE email = 'your@email.com';
+```
+
+## Project Structure
+
+```
+dance-calendar/
+├── src/
+│   ├── app/                 # Next.js App Router pages
+│   │   ├── (auth)/         # Authentication pages
+│   │   ├── (dashboard)/    # Protected dashboard pages
+│   │   ├── api/            # API routes
+│   │   └── event/          # Public event pages
+│   ├── components/         # React components
+│   │   ├── calendar/       # Calendar components
+│   │   ├── events/         # Event-related components
+│   │   ├── layout/         # Layout components
+│   │   ├── pwa/            # PWA components
+│   │   ├── providers/      # Context providers
+│   │   └── ui/             # shadcn/ui components
+│   └── lib/                # Utility functions
+│       ├── auth.ts         # NextAuth configuration
+│       ├── conflicts.ts    # Conflict detection
+│       ├── email.ts        # Email templates
+│       ├── prisma.ts       # Database client
+│       ├── recurrence.ts   # Recurring events
+│       └── types.ts        # TypeScript types
+├── prisma/
+│   └── schema.prisma       # Database schema
+└── public/
+    ├── icons/              # PWA icons
+    ├── manifest.json       # PWA manifest
+    └── sw.js               # Service worker
+```
+
+## API Routes
+
+- `GET /api/events` - List approved events
+- `POST /api/events` - Create new event (organizers only)
+- `GET /api/events/[id]` - Get event details
+- `PATCH /api/events/[id]` - Update event
+- `DELETE /api/events/[id]` - Delete event
+- `POST /api/events/conflicts` - Check for conflicts
+- `POST /api/auth/register` - Register new user
+- `GET /api/admin/users` - List organizers (admin only)
+- `POST /api/admin/users/[id]/approve` - Approve organizer
+- `GET /api/subscriptions` - Get user subscription
+- `POST /api/subscriptions` - Create/update subscription
+
+## License
+
+MIT
