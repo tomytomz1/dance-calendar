@@ -14,6 +14,7 @@ import {
   isToday,
 } from "date-fns";
 import { cn } from "@/lib/utils";
+import { CalendarEventChip } from "./calendar-event-chip";
 import type { CalendarEvent } from "@/lib/types";
 
 interface MonthViewProps {
@@ -137,15 +138,16 @@ export function MonthView({
                   >
                     {format(day, "d")}
                   </span>
-                  <div className="flex flex-wrap gap-0.5 justify-center mt-1">
+                  <div className="flex flex-col gap-0.5 w-full mt-1 px-0.5">
                     {dayEvents.slice(0, 3).map((event) => (
-                      <div
+                      <CalendarEventChip
                         key={event.id}
+                        event={event}
+                        variant="month"
                         onClick={(e) => {
                           e.stopPropagation();
                           onEventClick(event);
                         }}
-                        className="w-1.5 h-1.5 rounded-full bg-primary/70 cursor-pointer hover:bg-primary"
                       />
                     ))}
                   </div>
@@ -181,8 +183,8 @@ export function MonthView({
                         {format(new Date(event.start), "h:mm a")} - {event.venue}
                       </p>
                     </div>
-                    <div className="flex gap-1">
-                      {event.danceStyles.slice(0, 1).map((style) => (
+                    <div className="flex flex-wrap gap-1">
+                      {event.danceStyles.map((style) => (
                         <span
                           key={style}
                           className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"

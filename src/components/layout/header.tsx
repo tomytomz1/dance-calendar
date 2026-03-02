@@ -24,7 +24,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center justify-between px-4">
+      <div className="flex h-14 items-center justify-between w-full px-4">
         <div className="flex items-center gap-2">
           <Sheet>
             <SheetTrigger asChild>
@@ -34,22 +34,6 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="left" className="w-72">
               <nav className="flex flex-col gap-4 mt-8">
-                <Link
-                  href="/"
-                  className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
-                >
-                  <Calendar className="h-5 w-5" />
-                  Calendar
-                </Link>
-                {canCreateEvents && isVerified && (
-                  <Link
-                    href="/organizer/events/new"
-                    className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
-                  >
-                    <Plus className="h-5 w-5" />
-                    Create Event
-                  </Link>
-                )}
                 {canCreateEvents && (
                   <Link
                     href="/organizer/events"
@@ -95,20 +79,6 @@ export function Header() {
         </div>
 
         <nav className="hidden md:flex items-center gap-6">
-          <Link
-            href="/"
-            className="text-sm font-medium hover:text-primary transition-colors"
-          >
-            Calendar
-          </Link>
-          {canCreateEvents && isVerified && (
-            <Link
-              href="/organizer/events/new"
-              className="text-sm font-medium hover:text-primary transition-colors"
-            >
-              Create Event
-            </Link>
-          )}
           {session?.user?.role === "ADMIN" && (
             <Link
               href="/admin"

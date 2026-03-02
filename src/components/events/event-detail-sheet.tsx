@@ -63,22 +63,20 @@ export function EventDetailSheet({
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
-        <SheetHeader className="text-left">
-          <div className="flex items-start justify-between gap-4">
-            <SheetTitle className="text-xl font-bold pr-8">
-              {event.title}
-            </SheetTitle>
-            {event.isRecurring && (
-              <Badge variant="secondary" className="shrink-0">
-                <Repeat className="w-3 h-3 mr-1" />
-                Recurring
-              </Badge>
-            )}
-          </div>
+        <SheetHeader className="text-left pr-12">
+          <SheetTitle className="text-xl font-bold">
+            {event.title}
+          </SheetTitle>
+          {event.isRecurring && (
+            <Badge variant="secondary" className="mt-2 w-fit">
+              <Repeat className="w-3 h-3 mr-1" />
+              Recurring
+            </Badge>
+          )}
         </SheetHeader>
 
-        <div className="mt-6 space-y-6 overflow-y-auto pb-6">
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-6 space-y-6 overflow-y-auto pb-6 text-center">
+          <div className="flex flex-wrap gap-2 justify-center">
             {event.danceStyles.map((style) => (
               <Badge key={style} variant="default">
                 {style}
@@ -88,36 +86,32 @@ export function EventDetailSheet({
 
           <Separator />
 
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-primary mt-0.5" />
-              <div>
-                <p className="font-medium">
-                  {format(new Date(event.start), "EEEE, MMMM d, yyyy")}
-                </p>
-              </div>
+          <div className="space-y-4 flex flex-col items-center">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-primary shrink-0" />
+              <p className="font-medium">
+                {format(new Date(event.start), "EEEE, MMMM d, yyyy")}
+              </p>
             </div>
 
-            <div className="flex items-start gap-3">
-              <Clock className="w-5 h-5 text-primary mt-0.5" />
-              <div>
-                <p className="font-medium">
-                  {format(new Date(event.start), "h:mm a")} -{" "}
-                  {format(new Date(event.end), "h:mm a")}
-                </p>
-              </div>
+            <div className="flex items-center gap-3">
+              <Clock className="w-5 h-5 text-primary shrink-0" />
+              <p className="font-medium">
+                {format(new Date(event.start), "h:mm a")} -{" "}
+                {format(new Date(event.end), "h:mm a")}
+              </p>
             </div>
 
-            <div className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-primary mt-0.5" />
+            <div className="flex items-center gap-3">
+              <MapPin className="w-5 h-5 text-primary shrink-0" />
               <div>
                 <p className="font-medium">{event.venue}</p>
                 <p className="text-sm text-muted-foreground">{event.city}</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <User className="w-5 h-5 text-primary mt-0.5" />
+            <div className="flex items-center gap-3">
+              <User className="w-5 h-5 text-primary shrink-0" />
               <div>
                 <p className="font-medium">Organized by</p>
                 <p className="text-sm text-muted-foreground">
@@ -129,10 +123,10 @@ export function EventDetailSheet({
 
           <Separator />
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 justify-center max-w-sm mx-auto">
             <Button
               variant="outline"
-              className="flex-1 h-12"
+              className="flex-1 h-12 min-w-0"
               onClick={handleShare}
             >
               <Share2 className="w-4 h-4 mr-2" />

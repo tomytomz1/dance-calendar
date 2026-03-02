@@ -10,6 +10,7 @@ import {
   isToday,
 } from "date-fns";
 import { cn } from "@/lib/utils";
+import { CalendarEventChip } from "./calendar-event-chip";
 import type { CalendarEvent } from "@/lib/types";
 
 interface WeekViewProps {
@@ -121,13 +122,14 @@ export function WeekView({
                   </span>
                   <div className="flex flex-col gap-0.5 w-full">
                     {dayEvents.slice(0, 3).map((event) => (
-                      <div
+                      <CalendarEventChip
                         key={event.id}
+                        event={event}
+                        variant="week"
                         onClick={(e) => {
                           e.stopPropagation();
                           onEventClick(event);
                         }}
-                        className="w-full h-1.5 rounded-full bg-primary/70 cursor-pointer hover:bg-primary"
                       />
                     ))}
                     {dayEvents.length > 3 && (
@@ -168,7 +170,7 @@ export function WeekView({
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1 justify-end">
-                      {event.danceStyles.slice(0, 2).map((style) => (
+                      {event.danceStyles.map((style) => (
                         <span
                           key={style}
                           className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
