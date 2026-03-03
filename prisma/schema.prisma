@@ -48,8 +48,8 @@ model Event {
   updatedAt      DateTime
   organizerId    String
   organizer      User            @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-  EventInstance  EventInstance[]
-  RecurrenceRule RecurrenceRule?
+  instances      EventInstance[]
+  recurrenceRule RecurrenceRule?
 
   @@index([city])
   @@index([organizerId])
