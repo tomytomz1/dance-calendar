@@ -1,18 +1,17 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Calendar,
   Clock,
   MapPin,
-  User,
   ExternalLink,
   Ticket,
   Repeat,
@@ -76,11 +75,13 @@ export default async function EventPage({ params }: EventPageProps) {
 
         <div className="space-y-6">
           {event.imageUrl && (
-            <div className="aspect-video rounded-xl overflow-hidden bg-muted">
-              <img
+            <div className="aspect-video rounded-xl overflow-hidden bg-muted relative">
+              <Image
                 src={event.imageUrl}
                 alt={event.title}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                unoptimized
               />
             </div>
           )}

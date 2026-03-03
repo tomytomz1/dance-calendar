@@ -21,6 +21,7 @@ interface DeleteUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onDeleted: () => void;
+  label?: "Organizer" | "Dancer";
 }
 
 export function DeleteUserDialog({
@@ -29,6 +30,7 @@ export function DeleteUserDialog({
   isOpen,
   onClose,
   onDeleted,
+  label = "Organizer",
 }: DeleteUserDialogProps) {
   const [confirmText, setConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -72,11 +74,12 @@ export function DeleteUserDialog({
             <div className="p-2 rounded-full bg-destructive/10">
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
-            <DialogTitle>Delete Organizer</DialogTitle>
+            <DialogTitle>Delete {label}</DialogTitle>
           </div>
           <DialogDescription>
             Are you sure you want to delete <strong>{userName}</strong>? This
-            action cannot be undone. Their account and all their events will be
+            action cannot be undone. Their account
+            {label === "Organizer" ? " and all their events" : ""} will be
             permanently removed.
           </DialogDescription>
         </DialogHeader>
@@ -103,7 +106,7 @@ export function DeleteUserDialog({
             onClick={handleDelete}
             disabled={!canDelete || isDeleting}
           >
-            {isDeleting ? "Deleting..." : "Delete Organizer"}
+            {isDeleting ? "Deleting..." : `Delete ${label}`}
           </Button>
         </DialogFooter>
       </DialogContent>

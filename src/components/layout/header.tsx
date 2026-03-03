@@ -39,9 +39,13 @@ export function Header() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    fetchPendingCounts();
-    const interval = setInterval(fetchPendingCounts, 60000);
-    return () => clearInterval(interval);
+    const tick = () => void fetchPendingCounts();
+    const id = setTimeout(tick, 0);
+    const interval = setInterval(tick, 60000);
+    return () => {
+      clearTimeout(id);
+      clearInterval(interval);
+    };
   }, [isAdmin, fetchPendingCounts]);
 
   return (

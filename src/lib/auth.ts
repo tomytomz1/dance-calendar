@@ -42,11 +42,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: "/login",
   },
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      allowDangerousEmailAccountLinking: true,
-    }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
     Credentials({
       name: "credentials",
       credentials: {
@@ -100,14 +104,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.verified = session.verified;
       }
 
+      if (token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { id: true, role: true, verified: true },
+        });
+        if (!dbUser) {
+          return {} as typeof token;
+        }
+        token.role = dbUser.role;
+        token.verified = dbUser.verified;
+      }
+
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as UserRole;
-        session.user.verified = token.verified as boolean;
+      if (!token.id) {
+        return {} as typeof session;
       }
+      session.user.id = token.id as string;
+      session.user.role = token.role as UserRole;
+      session.user.verified = token.verified as boolean;
       return session;
     },
   },

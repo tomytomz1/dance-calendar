@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import {
   format,
@@ -39,15 +38,12 @@ export function MonthView({
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const calendarDays = useMemo(() => {
-    const days: Date[] = [];
-    let day = calendarStart;
-    while (day <= calendarEnd) {
-      days.push(day);
-      day = addDays(day, 1);
-    }
-    return days;
-  }, [calendarStart, calendarEnd]);
+  const calendarDays: Date[] = [];
+  let day = calendarStart;
+  while (day <= calendarEnd) {
+    calendarDays.push(day);
+    day = addDays(day, 1);
+  }
 
   const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const threshold = 50;

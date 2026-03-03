@@ -4,6 +4,10 @@ import { EventCalendar } from "@/components/calendar/event-calendar";
 import { prisma } from "@/lib/prisma";
 import type { CalendarEvent } from "@/lib/types";
 
+// Ensure calendar always fetches fresh events (e.g. after admin approval)
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getEvents(): Promise<CalendarEvent[]> {
   try {
     const events = await prisma.event.findMany({

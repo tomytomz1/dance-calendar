@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { Check, X, Calendar, Users, Clock, Trash2, UserCheck } from "lucide-react";
+import { Check, X, Calendar, Users, Clock, Trash2, Music } from "lucide-react";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
 import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
 
@@ -38,6 +38,13 @@ interface AdminEvent {
   };
 }
 
+interface Dancer {
+  id: string;
+  email: string;
+  name: string | null;
+  createdAt: string;
+}
+
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   APPROVED: "default",
   PENDING_APPROVAL: "outline",
@@ -55,12 +62,14 @@ const STATUS_LABEL: Record<string, string> = {
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
-  const [totalUsers, setTotalUsers] = useState(0);
+  const [dancers, setDancers] = useState<Dancer[]>([]);
+  const [totalDancers, setTotalDancers] = useState(0);
   const [pendingEvents, setPendingEvents] = useState<AdminEvent[]>([]);
   const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<AdminEvent | null>(null);
   const [deleteOrgTarget, setDeleteOrgTarget] = useState<Organizer | null>(null);
+  const [deleteDancerTarget, setDeleteDancerTarget] = useState<Dancer | null>(null);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -83,7 +92,8 @@ export default function AdminPage() {
       if (usersRes.ok) {
         const data = await usersRes.json();
         setOrganizers(data.organizers);
-        setTotalUsers(data.totalUsers);
+        setTotalDancers(data.totalDancers ?? 0);
+        setDancers(data.dancers ?? []);
       }
 
       if (pendingRes.ok) {
@@ -249,11 +259,11 @@ export default function AdminPage() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-full bg-green-500/10">
-                <UserCheck className="h-6 w-6 text-green-500" />
+                <Music className="h-6 w-6 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{totalUsers}</p>
-                <p className="text-sm text-muted-foreground">Total Users</p>
+                <p className="text-2xl font-bold">{totalDancers}</p>
+                <p className="text-sm text-muted-foreground">Total Dancers</p>
               </div>
             </div>
           </CardContent>
@@ -261,7 +271,7 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="pending" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="pending">
             Pending Events ({pendingEvents.length})
           </TabsTrigger>
@@ -270,6 +280,9 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="organizers">
             Organizers ({organizers.length})
+          </TabsTrigger>
+          <TabsTrigger value="dancers">
+            Dancers ({dancers.length})
           </TabsTrigger>
         </TabsList>
 
@@ -472,6 +485,49 @@ export default function AdminPage() {
             </div>
           )}
         </TabsContent>
+
+        <TabsContent value="dancers" className="space-y-4">
+          {dancers.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No dancers yet</p>
+              </CardContent>
+            </Card>
+          ) : (
+            dancers.map((dancer) => (
+              <Card key={dancer.id}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback>
+                          {dancer.name?.charAt(0).toUpperCase() || "D"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{dancer.name || "No name"}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {dancer.email}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Joined {format(new Date(dancer.createdAt), "PP")}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => setDeleteDancerTarget(dancer)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
       </Tabs>
 
       {deleteTarget && (
@@ -498,6 +554,21 @@ export default function AdminPage() {
             setAllEvents((prev) => prev.filter((e) => e.organizer.id !== deleteOrgTarget.id));
             setDeleteOrgTarget(null);
           }}
+        />
+      )}
+
+      {deleteDancerTarget && (
+        <DeleteUserDialog
+          userId={deleteDancerTarget.id}
+          userName={deleteDancerTarget.name || deleteDancerTarget.email}
+          isOpen={!!deleteDancerTarget}
+          onClose={() => setDeleteDancerTarget(null)}
+          onDeleted={() => {
+            setDancers((prev) => prev.filter((d) => d.id !== deleteDancerTarget.id));
+            setTotalDancers((prev) => Math.max(0, prev - 1));
+            setDeleteDancerTarget(null);
+          }}
+          label="Dancer"
         />
       )}
     </div>
