@@ -123,7 +123,7 @@ export function WeekView({
                   <div className="flex flex-col gap-0.5 w-full">
                     {dayEvents.slice(0, 3).map((event) => (
                       <CalendarEventChip
-                        key={event.id}
+                        key={event.instanceKey ?? event.id}
                         event={event}
                         variant="week"
                         onClick={(e) => {
@@ -154,7 +154,7 @@ export function WeekView({
             ) : (
               getEventsForDay(currentDate).map((event) => (
                 <button
-                  key={event.id}
+                  key={event.instanceKey ?? event.id}
                   onClick={() => onEventClick(event)}
                   className="w-full text-left p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
                 >

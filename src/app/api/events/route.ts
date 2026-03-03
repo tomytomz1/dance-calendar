@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { generateInstancesForEvent } from "@/lib/recurrence";
 import { z } from "zod";
 
 const eventSchema = z.object({
@@ -156,6 +157,12 @@ export async function POST(request: Request) {
         recurrenceRule: true,
       },
     });
+
+    if (event.isRecurring && event.recurrenceRule) {
+      await generateInstancesForEvent(event.id).catch((err) =>
+        console.error("Failed to generate instances for new event:", err)
+      );
+    }
 
     return NextResponse.json(event, { status: 201 });
   } catch (error) {

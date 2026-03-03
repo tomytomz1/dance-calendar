@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { generateInstancesForEvent } from "@/lib/recurrence";
 import { z } from "zod";
 
 const updateEventSchema = z.object({
@@ -112,8 +113,19 @@ export async function PATCH(
             name: true,
           },
         },
+        recurrenceRule: true,
       },
     });
+
+    if (
+      updatedEvent.isRecurring &&
+      updatedEvent.recurrenceRule &&
+      validatedData.status === "APPROVED"
+    ) {
+      await generateInstancesForEvent(id).catch((err) =>
+        console.error("Failed to generate instances on approve:", err)
+      );
+    }
 
     return NextResponse.json(updatedEvent);
   } catch (error) {
