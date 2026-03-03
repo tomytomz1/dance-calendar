@@ -44,7 +44,12 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          return caches.match(event.request);
+          return caches.match(event.request).then((r) =>
+            r || new Response(JSON.stringify({ error: 'Offline' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            })
+          );
         })
     );
     return;
@@ -63,7 +68,12 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          return cachedResponse;
+          if (cachedResponse) return cachedResponse;
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: new Headers({ 'Content-Type': 'text/html' }),
+          });
         });
 
       return cachedResponse || fetchPromise;

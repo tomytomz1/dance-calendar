@@ -116,6 +116,11 @@
   --sidebar-ring: oklch(0.7 0.22 320);
 }
 
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

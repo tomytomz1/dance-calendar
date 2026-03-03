@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { Check, X, Calendar, Users, Clock } from "lucide-react";
+import { Check, X, Calendar, Users, Clock, Trash2, UserCheck } from "lucide-react";
+import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
+import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
 
-interface PendingOrganizer {
+interface Organizer {
   id: string;
   email: string;
   name: string | null;
@@ -21,24 +23,44 @@ interface PendingOrganizer {
   _count: { events: number };
 }
 
-interface PendingEvent {
+interface AdminEvent {
   id: string;
   title: string;
+  status: string;
   venue: string;
   city: string;
   startTime: string;
   danceStyles: string[];
+  createdAt: string;
   organizer: {
     id: string;
     name: string | null;
   };
 }
 
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  APPROVED: "default",
+  PENDING_APPROVAL: "outline",
+  CANCELLED: "destructive",
+  DRAFT: "secondary",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  APPROVED: "Approved",
+  PENDING_APPROVAL: "Pending",
+  CANCELLED: "Cancelled",
+  DRAFT: "Draft",
+};
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
-  const [organizers, setOrganizers] = useState<PendingOrganizer[]>([]);
-  const [pendingEvents, setPendingEvents] = useState<PendingEvent[]>([]);
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [pendingEvents, setPendingEvents] = useState<AdminEvent[]>([]);
+  const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<AdminEvent | null>(null);
+  const [deleteOrgTarget, setDeleteOrgTarget] = useState<Organizer | null>(null);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -52,19 +74,26 @@ export default function AdminPage() {
   async function fetchData() {
     setIsLoading(true);
     try {
-      const [organizersRes, eventsRes] = await Promise.all([
+      const [usersRes, pendingRes, allEventsRes] = await Promise.all([
         fetch("/api/admin/users"),
         fetch("/api/admin/events/pending"),
+        fetch("/api/admin/events"),
       ]);
 
-      if (organizersRes.ok) {
-        const data = await organizersRes.json();
-        setOrganizers(data);
+      if (usersRes.ok) {
+        const data = await usersRes.json();
+        setOrganizers(data.organizers);
+        setTotalUsers(data.totalUsers);
       }
 
-      if (eventsRes.ok) {
-        const data = await eventsRes.json();
+      if (pendingRes.ok) {
+        const data = await pendingRes.json();
         setPendingEvents(data);
+      }
+
+      if (allEventsRes.ok) {
+        const data = await allEventsRes.json();
+        setAllEvents(data);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -122,6 +151,9 @@ export default function AdminPage() {
       if (response.ok) {
         toast.success("Event approved successfully");
         setPendingEvents((prev) => prev.filter((e) => e.id !== id));
+        setAllEvents((prev) =>
+          prev.map((e) => (e.id === id ? { ...e, status: "APPROVED" } : e))
+        );
       } else {
         toast.error("Failed to approve event");
       }
@@ -141,6 +173,9 @@ export default function AdminPage() {
       if (response.ok) {
         toast.success("Event rejected");
         setPendingEvents((prev) => prev.filter((e) => e.id !== id));
+        setAllEvents((prev) =>
+          prev.map((e) => (e.id === id ? { ...e, status: "CANCELLED" } : e))
+        );
       } else {
         toast.error("Failed to reject event");
       }
@@ -170,7 +205,7 @@ export default function AdminPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -192,7 +227,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{pendingOrganizers.length}</p>
-                <p className="text-sm text-muted-foreground">Pending Approval</p>
+                <p className="text-sm text-muted-foreground">Pending Organizers</p>
               </div>
             </div>
           </CardContent>
@@ -200,8 +235,8 @@ export default function AdminPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-full bg-accent/10">
-                <Calendar className="h-6 w-6 text-accent" />
+              <div className="p-3 rounded-full bg-orange-500/10">
+                <Calendar className="h-6 w-6 text-orange-500" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{pendingEvents.length}</p>
@@ -210,19 +245,36 @@ export default function AdminPage() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-green-500/10">
+                <UserCheck className="h-6 w-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{totalUsers}</p>
+                <p className="text-sm text-muted-foreground">Total Users</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <Tabs defaultValue="events" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="events">
+      <Tabs defaultValue="pending" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="pending">
             Pending Events ({pendingEvents.length})
+          </TabsTrigger>
+          <TabsTrigger value="all-events">
+            All Events ({allEvents.length})
           </TabsTrigger>
           <TabsTrigger value="organizers">
             Organizers ({organizers.length})
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="events" className="space-y-4">
+        {/* Pending Events - Approve / Reject only */}
+        <TabsContent value="pending" className="space-y-4">
           {pendingEvents.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -261,13 +313,66 @@ export default function AdminPage() {
                     </Button>
                     <Button
                       size="sm"
-                      variant="destructive"
+                      variant="outline"
                       onClick={() => handleRejectEvent(event.id)}
                     >
                       <X className="h-4 w-4 mr-1" />
                       Reject
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
+
+        {/* All Events - status badge + Delete for non-pending */}
+        <TabsContent value="all-events" className="space-y-4">
+          {allEvents.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No events found</p>
+              </CardContent>
+            </Card>
+          ) : (
+            allEvents.map((event) => (
+              <Card key={event.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{event.title}</CardTitle>
+                    <Badge variant={STATUS_VARIANT[event.status] || "outline"}>
+                      {STATUS_LABEL[event.status] || event.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm text-muted-foreground mb-4">
+                    <p>
+                      {format(new Date(event.startTime), "PPP 'at' p")}
+                    </p>
+                    <p>{event.venue}, {event.city}</p>
+                    <p>By: {event.organizer.name}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {event.danceStyles.map((style) => (
+                      <Badge key={style} variant="outline" className="text-xs">
+                        {style}
+                      </Badge>
+                    ))}
+                  </div>
+                  {event.status !== "PENDING_APPROVAL" && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeleteTarget(event)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))
@@ -307,10 +412,17 @@ export default function AdminPage() {
                         </Button>
                         <Button
                           size="sm"
-                          variant="destructive"
+                          variant="outline"
                           onClick={() => handleRejectOrganizer(organizer.id)}
                         >
                           <X className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setDeleteOrgTarget(organizer)}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -343,7 +455,16 @@ export default function AdminPage() {
                           </p>
                         </div>
                       </div>
-                      <Badge>Verified</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge>Verified</Badge>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setDeleteOrgTarget(organizer)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -352,6 +473,33 @@ export default function AdminPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {deleteTarget && (
+        <DeleteEventDialog
+          eventId={deleteTarget.id}
+          eventTitle={deleteTarget.title}
+          isOpen={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            setAllEvents((prev) => prev.filter((e) => e.id !== deleteTarget.id));
+            setDeleteTarget(null);
+          }}
+        />
+      )}
+
+      {deleteOrgTarget && (
+        <DeleteUserDialog
+          userId={deleteOrgTarget.id}
+          userName={deleteOrgTarget.name || deleteOrgTarget.email}
+          isOpen={!!deleteOrgTarget}
+          onClose={() => setDeleteOrgTarget(null)}
+          onDeleted={() => {
+            setOrganizers((prev) => prev.filter((o) => o.id !== deleteOrgTarget.id));
+            setAllEvents((prev) => prev.filter((e) => e.organizer.id !== deleteOrgTarget.id));
+            setDeleteOrgTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }

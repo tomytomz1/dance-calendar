@@ -10,25 +10,30 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const users = await prisma.user.findMany({
-      where: {
-        role: "ORGANIZER",
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        verified: true,
-        createdAt: true,
-        _count: {
-          select: { events: true },
+    const [organizers, totalUsers] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          role: "ORGANIZER",
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          verified: true,
+          createdAt: true,
+          _count: {
+            select: { events: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.user.count({
+        where: { role: "USER" },
+      }),
+    ]);
 
-    return NextResponse.json(users);
+    return NextResponse.json({ organizers, totalUsers });
   } catch (error) {
     console.error("Error fetching users:", error);
     return NextResponse.json(

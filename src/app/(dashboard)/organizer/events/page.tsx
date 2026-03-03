@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { format } from "date-fns";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, MapPin, Edit, Eye } from "lucide-react";
-import { EVENT_STATUS_LABELS } from "@/lib/types";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus, Calendar } from "lucide-react";
+import { OrganizerEventList } from "@/components/events/organizer-event-list";
 
 export default async function OrganizerEventsPage() {
   const session = await auth();
@@ -29,18 +27,15 @@ export default async function OrganizerEventsPage() {
     },
   });
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "APPROVED":
-        return "default";
-      case "PENDING_APPROVAL":
-        return "secondary";
-      case "CANCELLED":
-        return "destructive";
-      default:
-        return "outline";
-    }
-  };
+  const serializedEvents = events.map((e) => ({
+    id: e.id,
+    title: e.title,
+    status: e.status,
+    startTime: e.startTime.toISOString(),
+    venue: e.venue,
+    city: e.city,
+    danceStyles: e.danceStyles,
+  }));
 
   return (
     <div className="space-y-6">
@@ -71,7 +66,7 @@ export default async function OrganizerEventsPage() {
         </Card>
       )}
 
-      {events.length === 0 ? (
+      {serializedEvents.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
@@ -90,55 +85,7 @@ export default async function OrganizerEventsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {events.map((event) => (
-            <Card key={event.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between gap-4">
-                  <CardTitle className="text-lg">{event.title}</CardTitle>
-                  <Badge variant={getStatusVariant(event.status)}>
-                    {EVENT_STATUS_LABELS[event.status as keyof typeof EVENT_STATUS_LABELS]}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      {format(new Date(event.startTime), "PPP 'at' p")}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <span>{event.venue}, {event.city}</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {event.danceStyles.map((style) => (
-                    <Badge key={style} variant="outline" className="text-xs">
-                      {style}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/event/${event.id}`}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/organizer/events/${event.id}/edit`}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <OrganizerEventList initialEvents={serializedEvents} />
       )}
     </div>
   );

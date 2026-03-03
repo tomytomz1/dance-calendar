@@ -96,7 +96,17 @@ export function EventForm({ event, mode }: EventFormProps) {
           : undefined,
       }
     : {
+        title: "",
+        description: "",
         danceStyles: [],
+        venue: "",
+        address: "",
+        city: "",
+        startTime: "",
+        endTime: "",
+        imageUrl: "",
+        ticketUrl: "",
+        price: "",
         isRecurring: false,
       };
 

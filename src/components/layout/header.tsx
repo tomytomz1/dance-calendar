@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -11,16 +12,37 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, Plus, LogOut, User, Settings, Calendar } from "lucide-react";
+import { Menu, Plus, LogOut, User, Settings, Calendar, LayoutDashboard } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export function Header() {
   const { data: session, status } = useSession();
   const isLoading = status === "loading";
+  const [pendingCount, setPendingCount] = useState(0);
 
+  const isAdmin = session?.user?.role === "ADMIN";
   const canCreateEvents =
-    session?.user?.role === "ORGANIZER" || session?.user?.role === "ADMIN";
+    session?.user?.role === "ORGANIZER" || isAdmin;
   const isVerified = session?.user?.verified;
+
+  const fetchPendingCounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/pending-counts");
+      if (res.ok) {
+        const data = await res.json();
+        setPendingCount(data.pendingEvents + data.pendingOrganizers);
+      }
+    } catch {
+      // silently ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchPendingCounts();
+    const interval = setInterval(fetchPendingCounts, 60000);
+    return () => clearInterval(interval);
+  }, [isAdmin, fetchPendingCounts]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -43,13 +65,27 @@ export function Header() {
                     My Events
                   </Link>
                 )}
-                {session?.user?.role === "ADMIN" && (
+                {session && (
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
+                  >
+                    <User className="h-5 w-5" />
+                    Profile
+                  </Link>
+                )}
+                {isAdmin && (
                   <Link
                     href="/admin"
                     className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
                   >
-                    <User className="h-5 w-5" />
-                    Admin
+                    <LayoutDashboard className="h-5 w-5" />
+                    Admin Dashboard
+                    {pendingCount > 0 && (
+                      <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
+                        {pendingCount}
+                      </span>
+                    )}
                   </Link>
                 )}
               </nav>
@@ -77,17 +113,6 @@ export function Header() {
             </span>
           </Link>
         </div>
-
-        <nav className="hidden md:flex items-center gap-6">
-          {session?.user?.role === "ADMIN" && (
-            <Link
-              href="/admin"
-              className="text-sm font-medium hover:text-primary transition-colors"
-            >
-              Admin
-            </Link>
-          )}
-        </nav>
 
         <div className="flex items-center gap-2">
           {canCreateEvents && isVerified && (
@@ -117,6 +142,9 @@ export function Header() {
                       {session.user.name?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
+                  {isAdmin && pendingCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-red-500 border-2 border-background" />
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -129,23 +157,36 @@ export function Header() {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                {canCreateEvents && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link href="/organizer/events">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        My Events
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/organizer/profile">
-                        <User className="mr-2 h-4 w-4" />
-                        Profile
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/admin" className="flex items-center justify-between w-full">
+                      <span className="flex items-center">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Admin Dashboard
+                      </span>
+                      {pendingCount > 0 && (
+                        <span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
+                          {pendingCount}
+                        </span>
+                      )}
+                    </Link>
+                  </DropdownMenuItem>
                 )}
+                {canCreateEvents && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/organizer/events">
+                      <Calendar className="mr-2 h-4 w-4" />
+                      My Events
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem asChild>
+                  <Link href="/profile">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => signOut({ callbackUrl: "/" })}
