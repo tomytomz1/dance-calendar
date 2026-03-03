@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import { format, addHours } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,29 +57,9 @@ const eventFormSchema = z.object({
   address: z.string().min(5, "Address is required"),
   city: z.string().min(2, "City is required"),
   startDate: z.date({ message: "Start date is required" }),
-  startTime: z
-    .string()
-    .min(1, "Start time is required")
-    .refine(
-      (val) => {
-        const parts = val.split(":").map(Number);
-        const minutes = parts[1] ?? 0;
-        return [0, 15, 30, 45].includes(minutes);
-      },
-      { message: "Time must be in 15-minute intervals (e.g. 10:00, 10:15, 10:30, 10:45)" }
-    ),
+  startTime: z.string().min(1, "Start time is required"),
   endDate: z.date({ message: "End date is required" }),
-  endTime: z
-    .string()
-    .min(1, "End time is required")
-    .refine(
-      (val) => {
-        const parts = val.split(":").map(Number);
-        const minutes = parts[1] ?? 0;
-        return [0, 15, 30, 45].includes(minutes);
-      },
-      { message: "Time must be in 15-minute intervals (e.g. 10:00, 10:15, 10:30, 10:45)" }
-    ),
+  endTime: z.string().min(1, "End time is required"),
   imageUrl: z.string().url().optional().or(z.literal("")),
   ticketUrl: z.string().url().optional().or(z.literal("")),
   price: z.string().optional(),
@@ -89,6 +69,38 @@ const eventFormSchema = z.object({
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
+
+const HOUR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const MINUTE_OPTIONS = ["00", "15", "30", "45"];
+const PERIOD_OPTIONS = ["AM", "PM"] as const;
+
+function parseTimeTo12Hour(hhmm: string): {
+  hour: number;
+  minute: string;
+  period: "AM" | "PM";
+} {
+  const [h, m] = (hhmm || "00:00").split(":").map(Number);
+  const h24 = h ?? 0;
+  const min = m ?? 0;
+  const minute = ["00", "15", "30", "45"][Math.round(min / 15) % 4] ?? "00";
+  if (h24 === 0)
+    return { hour: 12, minute, period: "AM" };
+  if (h24 === 12)
+    return { hour: 12, minute, period: "PM" };
+  if (h24 < 12)
+    return { hour: h24, minute, period: "AM" };
+  return { hour: h24 - 12, minute, period: "PM" };
+}
+
+function toHHmm(hour: number, minute: string, period: "AM" | "PM"): string {
+  let h24: number;
+  if (period === "AM") {
+    h24 = hour === 12 ? 0 : hour;
+  } else {
+    h24 = hour === 12 ? 12 : hour + 12;
+  }
+  return `${h24.toString().padStart(2, "0")}:${minute}`;
+}
 
 interface EventFormProps {
   event?: Event & { recurrenceRule?: RecurrenceRule | null };
@@ -102,6 +114,9 @@ export function EventForm({ event, mode }: EventFormProps) {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] =
     useState<EventFormValues | null>(null);
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
+  const [recurrenceUntilOpen, setRecurrenceUntilOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>(
     event?.danceStyles || []
   );
@@ -156,15 +171,18 @@ export function EventForm({ event, mode }: EventFormProps) {
   const watchedVenue = form.watch("venue");
 
   const getDateTime = (date: Date | undefined, time: string | undefined): Date | null => {
-    if (!date || !time) return null;
+    if (!date || !time?.trim()) return null;
     const dateTime = new Date(date);
     const [hours, minutes] = (time || "00:00").split(":").map(Number);
-    dateTime.setHours(hours || 0, minutes || 0);
+    dateTime.setHours(hours ?? 0, minutes ?? 0);
     return dateTime;
   };
 
   const startDateTime = getDateTime(watchedStartDate, watchedStartTime);
-  const endDateTime = getDateTime(watchedEndDate, watchedEndTime);
+  const endDateTimeRaw = getDateTime(watchedEndDate, watchedEndTime);
+  const endDateTime =
+    endDateTimeRaw ??
+    (startDateTime ? addHours(startDateTime, 1) : null);
 
   function handleSubmit(data: EventFormValues) {
     if (hasConflicts) {
@@ -339,7 +357,7 @@ export function EventForm({ event, mode }: EventFormProps) {
             <ConflictWarning
               startTime={startDateTime}
               endTime={endDateTime}
-              city={watchedCity || ""}
+              city={watchedCity?.trim() || ""}
               venue={watchedVenue || ""}
               excludeEventId={event?.id}
               onConflictsChange={setHasConflicts}
@@ -351,7 +369,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Start Date</FormLabel>
-                    <Popover>
+                    <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -374,7 +392,10 @@ export function EventForm({ event, mode }: EventFormProps) {
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            if (date) setStartDateOpen(false);
+                          }}
                           disabled={(date) => date < new Date()}
                           initialFocus
                         />
@@ -388,15 +409,78 @@ export function EventForm({ event, mode }: EventFormProps) {
               <FormField
                 control={form.control}
                 name="startTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Time</FormLabel>
-                    <FormControl>
-                      <Input type="time" step={900} {...field} className="h-12" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const { hour, minute, period } = parseTimeTo12Hour(
+                    field.value || "00:00"
+                  );
+                  return (
+                    <FormItem>
+                      <FormLabel>Start Time</FormLabel>
+                      <div className="flex gap-2">
+                        <Select
+                          value={String(hour)}
+                          onValueChange={(v) =>
+                            field.onChange(
+                              toHHmm(Number(v), minute, period)
+                            )
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12 flex-1">
+                              <SelectValue placeholder="Hour" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {HOUR_OPTIONS.map((h) => (
+                              <SelectItem key={h} value={String(h)}>
+                                {h}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={minute}
+                          onValueChange={(v) =>
+                            field.onChange(toHHmm(hour, v, period))
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12 flex-1">
+                              <SelectValue placeholder="Min" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {MINUTE_OPTIONS.map((m) => (
+                              <SelectItem key={m} value={m}>
+                                {m}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={period}
+                          onValueChange={(v: "AM" | "PM") =>
+                            field.onChange(toHHmm(hour, minute, v))
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12 w-24">
+                              <SelectValue placeholder="AM/PM" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PERIOD_OPTIONS.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
@@ -405,7 +489,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>End Date</FormLabel>
-                    <Popover>
+                    <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
@@ -428,7 +512,10 @@ export function EventForm({ event, mode }: EventFormProps) {
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(date) => {
+                            field.onChange(date);
+                            if (date) setEndDateOpen(false);
+                          }}
                           disabled={(date) => date < new Date()}
                           initialFocus
                         />
@@ -442,15 +529,78 @@ export function EventForm({ event, mode }: EventFormProps) {
               <FormField
                 control={form.control}
                 name="endTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Time</FormLabel>
-                    <FormControl>
-                      <Input type="time" step={900} {...field} className="h-12" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const { hour, minute, period } = parseTimeTo12Hour(
+                    field.value || "00:00"
+                  );
+                  return (
+                    <FormItem>
+                      <FormLabel>End Time</FormLabel>
+                      <div className="flex gap-2">
+                        <Select
+                          value={String(hour)}
+                          onValueChange={(v) =>
+                            field.onChange(
+                              toHHmm(Number(v), minute, period)
+                            )
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12 flex-1">
+                              <SelectValue placeholder="Hour" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {HOUR_OPTIONS.map((h) => (
+                              <SelectItem key={h} value={String(h)}>
+                                {h}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={minute}
+                          onValueChange={(v) =>
+                            field.onChange(toHHmm(hour, v, period))
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12 flex-1">
+                              <SelectValue placeholder="Min" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {MINUTE_OPTIONS.map((m) => (
+                              <SelectItem key={m} value={m}>
+                                {m}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={period}
+                          onValueChange={(v: "AM" | "PM") =>
+                            field.onChange(toHHmm(hour, minute, v))
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-12 w-24">
+                              <SelectValue placeholder="AM/PM" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PERIOD_OPTIONS.map((p) => (
+                              <SelectItem key={p} value={p}>
+                                {p}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </div>
 
@@ -519,7 +669,10 @@ export function EventForm({ event, mode }: EventFormProps) {
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Repeat Until</FormLabel>
-                      <Popover>
+                      <Popover
+                        open={recurrenceUntilOpen}
+                        onOpenChange={setRecurrenceUntilOpen}
+                      >
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
@@ -542,7 +695,10 @@ export function EventForm({ event, mode }: EventFormProps) {
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              if (date) setRecurrenceUntilOpen(false);
+                            }}
                             disabled={(date) => date < new Date()}
                             initialFocus
                           />

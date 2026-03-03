@@ -46,7 +46,7 @@ export function ConflictWarning({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const checkConflicts = useCallback(async () => {
-    if (!startTime || !endTime || !city) {
+    if (!startTime || !endTime) {
       setResult(null);
       return;
     }
@@ -79,7 +79,7 @@ export function ConflictWarning({
   useEffect(() => {
     const debounce = setTimeout(() => {
       checkConflicts();
-    }, 500);
+    }, 200);
 
     return () => clearTimeout(debounce);
   }, [checkConflicts]);

@@ -31,7 +31,7 @@ function overlaps(
 export async function checkEventConflicts(
   startTime: Date,
   endTime: Date,
-  city: string,
+  city?: string,
   venue?: string,
   excludeEventId?: string
 ): Promise<ConflictCheckResult> {
@@ -39,7 +39,9 @@ export async function checkEventConflicts(
     where: {
       id: excludeEventId ? { not: excludeEventId } : undefined,
       status: "APPROVED",
-      city: { equals: city, mode: "insensitive" },
+      ...(city?.trim()
+        ? { city: { equals: city.trim(), mode: "insensitive" as const } }
+        : {}),
     },
     include: {
       organizer: {
@@ -141,7 +143,10 @@ export async function checkEventConflicts(
   };
 }
 
-export function getConflictMessage(result: ConflictCheckResult): string {
+export function getConflictMessage(
+  result: ConflictCheckResult,
+  cityFiltered?: boolean
+): string {
   if (!result.hasConflicts) {
     return "";
   }
@@ -153,7 +158,9 @@ export function getConflictMessage(result: ConflictCheckResult): string {
     case "venue":
       return `Warning: There ${count === 1 ? "is" : "are"} ${count} ${eventWord} at the same venue during this time.`;
     case "time":
-      return `Note: There ${count === 1 ? "is" : "are"} ${count} ${eventWord} in the same city with overlapping times.`;
+      return cityFiltered
+        ? `Note: There ${count === 1 ? "is" : "are"} ${count} ${eventWord} in the same city with overlapping times.`
+        : `Warning: There ${count === 1 ? "is" : "are"} ${count} ${eventWord} at this date and time.`;
     case "city":
       return `Info: There ${count === 1 ? "is" : "are"} ${count} other ${eventWord} in ${result.conflicts[0]?.city || "this city"} around this time.`;
     default:
