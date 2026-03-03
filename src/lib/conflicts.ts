@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { generateRecurrenceInstances } from "./recurrence";
 
 export interface ConflictingEvent {
   id: string;
@@ -18,6 +19,15 @@ export interface ConflictCheckResult {
   severity: "high" | "medium" | "low" | null;
 }
 
+function overlaps(
+  userStart: Date,
+  userEnd: Date,
+  eventStart: Date,
+  eventEnd: Date
+): boolean {
+  return userStart < eventEnd && userEnd > eventStart;
+}
+
 export async function checkEventConflicts(
   startTime: Date,
   endTime: Date,
@@ -25,33 +35,72 @@ export async function checkEventConflicts(
   venue?: string,
   excludeEventId?: string
 ): Promise<ConflictCheckResult> {
-  const buffer = 60 * 60 * 1000; // 1 hour buffer
-  const searchStart = new Date(startTime.getTime() - buffer);
-  const searchEnd = new Date(endTime.getTime() + buffer);
-
-  const overlappingEvents = await prisma.event.findMany({
+  const eventsInCity = await prisma.event.findMany({
     where: {
       id: excludeEventId ? { not: excludeEventId } : undefined,
       status: "APPROVED",
       city: { equals: city, mode: "insensitive" },
-      OR: [
-        {
-          AND: [
-            { startTime: { lte: searchEnd } },
-            { endTime: { gte: searchStart } },
-          ],
-        },
-      ],
     },
     include: {
       organizer: {
         select: { name: true },
       },
+      recurrenceRule: true,
     },
     orderBy: { startTime: "asc" },
   });
 
-  if (overlappingEvents.length === 0) {
+  const conflicts: ConflictingEvent[] = [];
+
+  for (const event of eventsInCity) {
+    const baseEvent = {
+      id: event.id,
+      title: event.title,
+      venue: event.venue,
+      city: event.city,
+      danceStyles: event.danceStyles,
+      organizerName: event.organizer.name || "Unknown",
+    };
+
+    if (!event.isRecurring || !event.recurrenceRule) {
+      if (overlaps(startTime, endTime, event.startTime, event.endTime)) {
+        conflicts.push({
+          ...baseEvent,
+          startTime: event.startTime,
+          endTime: event.endTime,
+        });
+      }
+      continue;
+    }
+
+    const config = {
+      frequency: event.recurrenceRule.frequency,
+      interval: event.recurrenceRule.interval,
+      daysOfWeek: event.recurrenceRule.daysOfWeek,
+      until: event.recurrenceRule.until ?? undefined,
+      count: event.recurrenceRule.count ?? undefined,
+    };
+
+    const instances = generateRecurrenceInstances(
+      event.startTime,
+      event.endTime,
+      config
+    );
+
+    const overlappingInstance = instances.find((inst) =>
+      overlaps(startTime, endTime, inst.startTime, inst.endTime)
+    );
+
+    if (overlappingInstance) {
+      conflicts.push({
+        ...baseEvent,
+        startTime: overlappingInstance.startTime,
+        endTime: overlappingInstance.endTime,
+      });
+    }
+  }
+
+  if (conflicts.length === 0) {
     return {
       hasConflicts: false,
       conflicts: [],
@@ -60,28 +109,15 @@ export async function checkEventConflicts(
     };
   }
 
-  const conflicts: ConflictingEvent[] = overlappingEvents.map((event) => ({
-    id: event.id,
-    title: event.title,
-    venue: event.venue,
-    city: event.city,
-    startTime: event.startTime,
-    endTime: event.endTime,
-    danceStyles: event.danceStyles,
-    organizerName: event.organizer.name || "Unknown",
-  }));
-
   const sameVenueConflicts = venue
     ? conflicts.filter(
         (c) => c.venue.toLowerCase() === venue.toLowerCase()
       )
     : [];
 
-  const directTimeConflicts = conflicts.filter((c) => {
-    const eventStart = new Date(c.startTime);
-    const eventEnd = new Date(c.endTime);
-    return startTime < eventEnd && endTime > eventStart;
-  });
+  const directTimeConflicts = conflicts.filter((c) =>
+    overlaps(startTime, endTime, c.startTime, c.endTime)
+  );
 
   let conflictType: "venue" | "time" | "city" | null = null;
   let severity: "high" | "medium" | "low" | null = null;

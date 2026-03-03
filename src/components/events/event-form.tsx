@@ -26,6 +26,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -49,9 +57,29 @@ const eventFormSchema = z.object({
   address: z.string().min(5, "Address is required"),
   city: z.string().min(2, "City is required"),
   startDate: z.date({ message: "Start date is required" }),
-  startTime: z.string().min(1, "Start time is required"),
+  startTime: z
+    .string()
+    .min(1, "Start time is required")
+    .refine(
+      (val) => {
+        const parts = val.split(":").map(Number);
+        const minutes = parts[1] ?? 0;
+        return [0, 15, 30, 45].includes(minutes);
+      },
+      { message: "Time must be in 15-minute intervals (e.g. 10:00, 10:15, 10:30, 10:45)" }
+    ),
   endDate: z.date({ message: "End date is required" }),
-  endTime: z.string().min(1, "End time is required"),
+  endTime: z
+    .string()
+    .min(1, "End time is required")
+    .refine(
+      (val) => {
+        const parts = val.split(":").map(Number);
+        const minutes = parts[1] ?? 0;
+        return [0, 15, 30, 45].includes(minutes);
+      },
+      { message: "Time must be in 15-minute intervals (e.g. 10:00, 10:15, 10:30, 10:45)" }
+    ),
   imageUrl: z.string().url().optional().or(z.literal("")),
   ticketUrl: z.string().url().optional().or(z.literal("")),
   price: z.string().optional(),
@@ -70,6 +98,10 @@ interface EventFormProps {
 export function EventForm({ event, mode }: EventFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasConflicts, setHasConflicts] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [pendingSubmitData, setPendingSubmitData] =
+    useState<EventFormValues | null>(null);
   const [selectedStyles, setSelectedStyles] = useState<string[]>(
     event?.danceStyles || []
   );
@@ -133,6 +165,23 @@ export function EventForm({ event, mode }: EventFormProps) {
 
   const startDateTime = getDateTime(watchedStartDate, watchedStartTime);
   const endDateTime = getDateTime(watchedEndDate, watchedEndTime);
+
+  function handleSubmit(data: EventFormValues) {
+    if (hasConflicts) {
+      setPendingSubmitData(data);
+      setConfirmDialogOpen(true);
+      return;
+    }
+    onSubmit(data);
+  }
+
+  function handleConfirmContinue() {
+    if (pendingSubmitData) {
+      onSubmit(pendingSubmitData);
+      setPendingSubmitData(null);
+    }
+    setConfirmDialogOpen(false);
+  }
 
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
@@ -210,7 +259,7 @@ export function EventForm({ event, mode }: EventFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Event Details</CardTitle>
@@ -293,6 +342,7 @@ export function EventForm({ event, mode }: EventFormProps) {
               city={watchedCity || ""}
               venue={watchedVenue || ""}
               excludeEventId={event?.id}
+              onConflictsChange={setHasConflicts}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
@@ -342,7 +392,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                   <FormItem>
                     <FormLabel>Start Time</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} className="h-12" />
+                      <Input type="time" step={900} {...field} className="h-12" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -396,7 +446,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                   <FormItem>
                     <FormLabel>End Time</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} className="h-12" />
+                      <Input type="time" step={900} {...field} className="h-12" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -652,6 +702,36 @@ export function EventForm({ event, mode }: EventFormProps) {
           </Button>
         </div>
       </form>
+
+      <Dialog
+        open={confirmDialogOpen}
+        onOpenChange={(open) => {
+          setConfirmDialogOpen(open);
+          if (!open) setPendingSubmitData(null);
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Scheduling Conflict</DialogTitle>
+            <DialogDescription>
+              There is already an event at this time and date. Do you want to
+              continue setting up your event anyway?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConfirmDialogOpen(false);
+                setPendingSubmitData(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmContinue}>Continue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 }

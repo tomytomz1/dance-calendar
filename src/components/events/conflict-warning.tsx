@@ -22,6 +22,7 @@ interface ConflictWarningProps {
   city: string;
   venue: string;
   excludeEventId?: string;
+  onConflictsChange?: (hasConflicts: boolean) => void;
 }
 
 interface ConflictResult {
@@ -38,6 +39,7 @@ export function ConflictWarning({
   city,
   venue,
   excludeEventId,
+  onConflictsChange,
 }: ConflictWarningProps) {
   const [result, setResult] = useState<ConflictResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,6 +83,10 @@ export function ConflictWarning({
 
     return () => clearTimeout(debounce);
   }, [checkConflicts]);
+
+  useEffect(() => {
+    onConflictsChange?.(result?.hasConflicts ?? false);
+  }, [result?.hasConflicts, onConflictsChange]);
 
   if (isLoading || !result || !result.hasConflicts) {
     return null;
