@@ -1,10 +1,31 @@
 import { Suspense } from "react";
 import { addMonths, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { Header } from "@/components/layout/header";
-import { EventCalendar } from "@/components/calendar/event-calendar";
+import { EventCalendarWrapper } from "@/components/calendar/event-calendar-wrapper";
 import { prisma } from "@/lib/prisma";
 import { generateRecurrenceInstances } from "@/lib/recurrence";
 import type { CalendarEvent } from "@/lib/types";
+
+function CalendarSkeleton() {
+  return (
+    <div className="flex flex-col h-[calc(100vh-56px)]">
+      <div className="p-4 space-y-3 border-b">
+        <div className="h-7 w-48 bg-muted animate-pulse rounded" />
+        <div className="flex gap-2">
+          <div className="h-10 flex-1 bg-muted animate-pulse rounded" />
+          <div className="h-10 flex-1 bg-muted animate-pulse rounded" />
+        </div>
+      </div>
+      <div className="flex-1 p-4">
+        <div className="grid grid-cols-7 gap-2">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <div key={i} className="h-16 bg-muted animate-pulse rounded" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Ensure calendar always fetches fresh events (e.g. after admin approval)
 export const dynamic = "force-dynamic";
@@ -96,27 +117,6 @@ async function getEvents(): Promise<CalendarEvent[]> {
   }
 }
 
-function CalendarSkeleton() {
-  return (
-    <div className="flex flex-col h-[calc(100vh-56px)]">
-      <div className="p-4 space-y-3 border-b">
-        <div className="h-7 w-48 bg-muted animate-pulse rounded" />
-        <div className="flex gap-2">
-          <div className="h-10 flex-1 bg-muted animate-pulse rounded" />
-          <div className="h-10 flex-1 bg-muted animate-pulse rounded" />
-        </div>
-      </div>
-      <div className="flex-1 p-4">
-        <div className="grid grid-cols-7 gap-2">
-          {Array.from({ length: 35 }).map((_, i) => (
-            <div key={i} className="h-16 bg-muted animate-pulse rounded" />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default async function HomePage() {
   const events = await getEvents();
 
@@ -126,7 +126,7 @@ export default async function HomePage() {
       <main className="flex-1">
         <Suspense fallback={<CalendarSkeleton />}>
           <div className="h-[calc(100vh-56px)]">
-            <EventCalendar events={events} />
+            <EventCalendarWrapper events={events} />
           </div>
         </Suspense>
       </main>
