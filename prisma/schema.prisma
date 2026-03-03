@@ -9,7 +9,7 @@ datasource db {
 }
 
 model Account {
-  id                String  @id
+  id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
@@ -28,7 +28,7 @@ model Account {
 }
 
 model Event {
-  id             String          @id
+  id             String          @id @default(cuid())
   title          String
   description    String?
   danceStyles    String[]
@@ -45,7 +45,7 @@ model Event {
   status         EventStatus     @default(PENDING_APPROVAL)
   isRecurring    Boolean         @default(false)
   createdAt      DateTime        @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime        @updatedAt
   organizerId    String
   organizer      User            @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   instances      EventInstance[]
@@ -58,7 +58,7 @@ model Event {
 }
 
 model EventInstance {
-  id            String   @id
+  id            String   @id @default(cuid())
   startTime     DateTime
   endTime       DateTime
   isCancelled   Boolean  @default(false)
@@ -66,7 +66,7 @@ model EventInstance {
   modifiedTitle String?
   modifiedVenue String?
   createdAt     DateTime @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   eventId       String
   Event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -75,7 +75,7 @@ model EventInstance {
 }
 
 model NotificationLog {
-  id      String   @id
+  id      String   @id @default(cuid())
   email   String
   type    String
   eventId String?
@@ -87,20 +87,20 @@ model NotificationLog {
 }
 
 model RecurrenceRule {
-  id         String              @id
+  id         String              @id @default(cuid())
   frequency  RecurrenceFrequency
   interval   Int                 @default(1)
   daysOfWeek Int[]
   until      DateTime?
   count      Int?
   createdAt  DateTime            @default(now())
-  updatedAt  DateTime
+  updatedAt  DateTime            @updatedAt
   eventId    String              @unique
   Event      Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 model Session {
-  id           String   @id
+  id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
   expires      DateTime
@@ -110,14 +110,14 @@ model Session {
 }
 
 model Subscription {
-  id                 String   @id
+  id                 String   @id @default(cuid())
   email              String   @unique
   danceStyles        String[]
   cities             String[]
   emailNotifications Boolean  @default(true)
   weeklyDigest       Boolean  @default(false)
   createdAt          DateTime @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime @updatedAt
   userId             String?
   User               User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -125,7 +125,7 @@ model Subscription {
 }
 
 model User {
-  id            String         @id
+  id            String         @id @default(cuid())
   email         String         @unique
   emailVerified DateTime?
   password      String?
@@ -137,7 +137,7 @@ model User {
   phone         String?
   website       String?
   createdAt     DateTime       @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime       @updatedAt
   Account       Account[]
   events        Event[]
   Session       Session[]
