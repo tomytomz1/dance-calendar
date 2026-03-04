@@ -77,7 +77,8 @@ export function MobileWeekView({
   const { registerSection, scrollToSection } = useScrollSync(
     scrollContainerRef,
     onDateSelect,
-    weekStart.toISOString()
+    weekStart.toISOString(),
+    { viewType: "week" }
   );
 
   useEffect(() => {

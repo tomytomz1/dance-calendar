@@ -96,8 +96,17 @@ export function Header() {
             </SheetContent>
           </Sheet>
 
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <Link
+            href="/"
+            className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity min-w-0"
+            onClick={(e) => {
+              if (e.ctrlKey || e.metaKey || e.button !== 0) return;
+              e.preventDefault();
+              window.location.href = "/";
+            }}
+            aria-label="Go to homepage"
+          >
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <svg
                 className="w-4 h-4 text-primary"
                 fill="none"
@@ -112,7 +121,7 @@ export function Header() {
                 />
               </svg>
             </div>
-            <span className="font-bold text-lg hidden sm:inline">
+            <span className="font-bold text-lg hidden sm:inline truncate">
               Dance Calendar
             </span>
           </Link>

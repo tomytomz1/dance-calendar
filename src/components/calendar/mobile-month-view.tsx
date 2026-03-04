@@ -50,7 +50,8 @@ export function MobileMonthView({
   const { registerSection, scrollToSection } = useScrollSync(
     scrollContainerRef,
     onDateSelect,
-    monthStart.toISOString()
+    monthStart.toISOString(),
+    { viewType: "month" }
   );
 
   useEffect(() => {

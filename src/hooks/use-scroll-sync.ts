@@ -1,11 +1,13 @@
 "use client";
 
 import { useRef, useCallback, useEffect } from "react";
+import { isSameMonth, isWithinInterval, addDays } from "date-fns";
 
 /**
  * Registers day sections for scroll-sync and observes which section is in view.
  * When a section becomes the "active" one (near top of viewport), calls onDateSelect.
  * scrollToSection skips observer updates briefly to avoid feedback loops.
+ * viewType ensures we only accept dates from the current view (prevents bounce-back during navigation).
  */
 export function useScrollSync(
   scrollContainerRef: React.RefObject<HTMLElement | null>,
@@ -16,6 +18,8 @@ export function useScrollSync(
     skipAfterScrollMs?: number;
     /** Root margin for intersection: "top right bottom left" */
     rootMargin?: string;
+    /** Only accept section dates that belong to this view (prevents bounce-back during AnimatePresence transitions) */
+    viewType?: "week" | "month";
   }
 ) {
   const sectionsRef = useRef<Map<string, { date: Date; element: HTMLElement }>>(
@@ -28,6 +32,22 @@ export function useScrollSync(
 
   const skipAfterScrollMs = options?.skipAfterScrollMs ?? 300;
   const rootMargin = options?.rootMargin ?? "-10% 0px -70% 0px";
+  const viewType = options?.viewType;
+
+  const isDateInView = useCallback(
+    (date: Date) => {
+      if (!viewType) return true;
+      const viewStart = new Date(viewKey);
+      if (viewType === "month") {
+        return isSameMonth(date, viewStart);
+      }
+      return isWithinInterval(date, {
+        start: viewStart,
+        end: addDays(viewStart, 6),
+      });
+    },
+    [viewKey, viewType]
+  );
 
   const registerSection = useCallback((date: Date, element: HTMLElement | null) => {
     const key = date.toDateString();
@@ -65,6 +85,8 @@ export function useScrollSync(
     if (!container) return;
 
     lastActiveRef.current = null;
+    // Skip observer updates during view transition (prevents bounce-back from stale sections)
+    skipUntilRef.current = Date.now() + 400;
 
     const timeoutId = setTimeout(() => {
       const sections = Array.from(sectionsRef.current.values());
@@ -95,7 +117,11 @@ export function useScrollSync(
               return rectA.top - rectB.top;
             });
             const topmost = sorted[0];
-            if (topmost && topmost.key !== lastActiveRef.current) {
+            if (
+              topmost &&
+              topmost.key !== lastActiveRef.current &&
+              isDateInView(topmost.entry.date)
+            ) {
               lastActiveRef.current = topmost.key;
               onDateSelect(topmost.entry.date);
             }
@@ -116,7 +142,7 @@ export function useScrollSync(
       clearTimeout(timeoutId);
       cleanupRef.current?.();
     };
-  }, [scrollContainerRef, onDateSelect, rootMargin, viewKey]);
+  }, [scrollContainerRef, onDateSelect, rootMargin, viewKey, isDateInView]);
 
   return { registerSection, scrollToSection };
 }
