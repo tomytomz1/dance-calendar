@@ -30,9 +30,12 @@ export function useScrollSync(
   const lastActiveRef = useRef<string | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  const skipAfterScrollMs = options?.skipAfterScrollMs ?? 300;
+  const skipAfterScrollMs = options?.skipAfterScrollMs ?? 500;
   const rootMargin = options?.rootMargin ?? "-10% 0px -70% 0px";
   const viewType = options?.viewType;
+  const debounceMs = 180;
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDateRef = useRef<Date | null>(null);
 
   const isDateInView = useCallback(
     (date: Date) => {
@@ -123,7 +126,16 @@ export function useScrollSync(
               isDateInView(topmost.entry.date)
             ) {
               lastActiveRef.current = topmost.key;
-              onDateSelect(topmost.entry.date);
+              pendingDateRef.current = topmost.entry.date;
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => {
+                debounceRef.current = null;
+                const date = pendingDateRef.current;
+                if (date) {
+                  pendingDateRef.current = null;
+                  onDateSelect(date);
+                }
+              }, debounceMs);
             }
           });
         },
@@ -140,6 +152,8 @@ export function useScrollSync(
 
     return () => {
       clearTimeout(timeoutId);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = null;
       cleanupRef.current?.();
     };
   }, [scrollContainerRef, onDateSelect, rootMargin, viewKey, isDateInView]);

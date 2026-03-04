@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useEffect } from "react";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { useRef } from "react";
+import { motion, AnimatePresence, PanInfo, useDragControls } from "framer-motion";
 import {
   format,
   startOfMonth,
@@ -35,6 +35,7 @@ export function MobileMonthView({
   onSwipe,
 }: MobileMonthViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
@@ -53,11 +54,6 @@ export function MobileMonthView({
     monthStart.toISOString(),
     { viewType: "month" }
   );
-
-  useEffect(() => {
-    const id = setTimeout(() => scrollToSection(currentDate), 100);
-    return () => clearTimeout(id);
-  }, [monthStart.toISOString(), scrollToSection, currentDate]);
 
   const handleDayClick = (d: Date) => {
     onDateSelect(d);
@@ -109,23 +105,30 @@ export function MobileMonthView({
             opacity: { duration: 0.2 },
           }}
           drag="x"
+          dragListener={false}
+          dragControls={dragControls}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.2}
           onDragEnd={handleDragEnd}
           className="h-full flex flex-col"
         >
-          <div className="grid grid-cols-7 border-b bg-muted/30">
-            {weekDays.map((d) => (
-              <div
-                key={d}
-                className="text-center py-2 text-xs font-medium text-muted-foreground"
-              >
-                {d}
-              </div>
-            ))}
-          </div>
+          <div
+            onPointerDown={(e) => dragControls.start(e)}
+            style={{ touchAction: "none" }}
+            className="shrink-0"
+          >
+            <div className="grid grid-cols-7 border-b bg-muted/30">
+              {weekDays.map((d) => (
+                <div
+                  key={d}
+                  className="text-center py-2 text-xs font-medium text-muted-foreground"
+                >
+                  {d}
+                </div>
+              ))}
+            </div>
 
-          <div className="grid grid-cols-7 shrink-0">
+            <div className="grid grid-cols-7 shrink-0">
             {calendarDays.map((day) => {
               const eventsForDay = getEventsForDay(day);
               const isCurrentMonth = isSameMonth(day, currentDate);
@@ -170,11 +173,12 @@ export function MobileMonthView({
                 </button>
               );
             })}
+            </div>
           </div>
 
           <div
             ref={scrollContainerRef}
-            className="px-4 pb-4 pt-0 space-y-6 border-t bg-card flex-1 overflow-y-auto min-h-0"
+            className="px-4 pb-4 pt-0 space-y-6 border-t bg-card flex-1 overflow-y-auto overscroll-y-contain touch-pan-y min-h-0 [-webkit-overflow-scrolling:touch]"
           >
             {calendarDays
               .filter((d) => getEventsForDay(d).length > 0)
