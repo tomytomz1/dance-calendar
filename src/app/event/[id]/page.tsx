@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { EventDateTimeDisplay } from "@/components/events/event-datetime-display";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,7 +110,11 @@ export default async function EventPage({ params }: EventPageProps) {
                 <Calendar className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                 <div>
                   <p className="font-medium">
-                    {format(new Date(event.startTime), "EEEE, MMMM d, yyyy")}
+                    <EventDateTimeDisplay
+                      startTime={event.startTime.toISOString()}
+                      endTime={event.endTime.toISOString()}
+                      variant="date"
+                    />
                   </p>
                 </div>
               </div>
@@ -119,8 +123,11 @@ export default async function EventPage({ params }: EventPageProps) {
                 <Clock className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                 <div>
                   <p className="font-medium">
-                    {format(new Date(event.startTime), "h:mm a")} -{" "}
-                    {format(new Date(event.endTime), "h:mm a")}
+                    <EventDateTimeDisplay
+                      startTime={event.startTime.toISOString()}
+                      endTime={event.endTime.toISOString()}
+                      variant="time"
+                    />
                   </p>
                 </div>
               </div>
