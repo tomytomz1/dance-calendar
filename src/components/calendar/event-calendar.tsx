@@ -5,6 +5,8 @@ import { addWeeks, addMonths, subWeeks, subMonths } from "date-fns";
 import { CalendarHeader } from "./calendar-header";
 import { WeekView } from "./week-view";
 import { MonthView } from "./month-view";
+import { MobileWeekView } from "./mobile-week-view";
+import { MobileMonthView } from "./mobile-month-view";
 import { EventDetailSheet } from "../events/event-detail-sheet";
 import type { CalendarEvent } from "@/lib/types";
 
@@ -71,23 +73,51 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
       />
 
       {view === "week" ? (
-        <WeekView
-          currentDate={currentDate}
-          events={events}
-          direction={direction}
-          onDateSelect={handleDateSelect}
-          onEventClick={handleEventClick}
-          onSwipe={handleSwipe}
-        />
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="hidden md:block flex-1 min-h-0">
+            <WeekView
+              currentDate={currentDate}
+              events={events}
+              direction={direction}
+              onDateSelect={handleDateSelect}
+              onEventClick={handleEventClick}
+              onSwipe={handleSwipe}
+            />
+          </div>
+          <div className="md:hidden flex-1 flex flex-col min-h-0">
+            <MobileWeekView
+              currentDate={currentDate}
+              events={events}
+              direction={direction}
+              onDateSelect={handleDateSelect}
+              onEventClick={handleEventClick}
+              onSwipe={handleSwipe}
+            />
+          </div>
+        </div>
       ) : (
-        <MonthView
-          currentDate={currentDate}
-          events={events}
-          direction={direction}
-          onDateSelect={handleDateSelect}
-          onEventClick={handleEventClick}
-          onSwipe={handleSwipe}
-        />
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="hidden md:block flex-1 min-h-0">
+            <MonthView
+              currentDate={currentDate}
+              events={events}
+              direction={direction}
+              onDateSelect={handleDateSelect}
+              onEventClick={handleEventClick}
+              onSwipe={handleSwipe}
+            />
+          </div>
+          <div className="md:hidden flex-1 flex flex-col min-h-0">
+            <MobileMonthView
+              currentDate={currentDate}
+              events={events}
+              direction={direction}
+              onDateSelect={handleDateSelect}
+              onEventClick={handleEventClick}
+              onSwipe={handleSwipe}
+            />
+          </div>
+        </div>
       )}
 
       <EventDetailSheet

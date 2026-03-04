@@ -120,8 +120,8 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           {canCreateEvents && isVerified && (
-            <Button asChild size="sm" className="hidden sm:flex">
-              <Link href="/organizer/events/new">
+            <Button asChild size="sm" className="flex">
+              <Link href="/organizer/events/new" className="flex items-center gap-1">
                 <Plus className="h-4 w-4 mr-1" />
                 Add Event
               </Link>
