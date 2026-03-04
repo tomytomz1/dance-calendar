@@ -34,11 +34,14 @@ export function EventDetailSheet({
 }: EventDetailSheetProps) {
   if (!event) return null;
 
+  const eventPath = `/event/${event.id}${event.isRecurring ? `?instance=${encodeURIComponent(event.start.toISOString())}` : ""}`;
+  const eventUrl = `${window.location.origin}${eventPath}`;
+
   const handleShare = async () => {
     const shareData = {
       title: event.title,
       text: `Check out this dance event: ${event.title} at ${event.venue}`,
-      url: `${window.location.origin}/event/${event.id}`,
+      url: eventUrl,
     };
 
     if (navigator.share) {
@@ -135,7 +138,7 @@ export function EventDetailSheet({
             </Button>
             <Button className="flex-1 shrink basis-0 h-12 min-w-0 px-4" asChild>
               <a
-                href={`/event/${event.id}`}
+                href={eventPath}
                 target="_blank"
                 rel="noopener noreferrer"
               >

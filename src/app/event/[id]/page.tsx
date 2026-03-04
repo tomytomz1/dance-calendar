@@ -20,6 +20,7 @@ import {
 
 interface EventPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ instance?: string }>;
 }
 
 export async function generateMetadata({ params }: EventPageProps) {
@@ -39,8 +40,12 @@ export async function generateMetadata({ params }: EventPageProps) {
   };
 }
 
-export default async function EventPage({ params }: EventPageProps) {
+export default async function EventPage({
+  params,
+  searchParams,
+}: EventPageProps) {
   const { id } = await params;
+  const { instance: instanceParam } = await searchParams;
 
   const event = await prisma.event.findUnique({
     where: { id },
@@ -61,6 +66,23 @@ export default async function EventPage({ params }: EventPageProps) {
   if (!event) {
     notFound();
   }
+
+  const useInstanceTime =
+    event.isRecurring &&
+    instanceParam &&
+    !Number.isNaN(Date.parse(instanceParam));
+
+  const instanceStart = instanceParam ? new Date(instanceParam) : null;
+  const displayStart = useInstanceTime && instanceStart
+    ? instanceStart
+    : event.startTime;
+  const displayEnd =
+    useInstanceTime && instanceStart
+      ? new Date(
+          instanceStart.getTime() +
+            (event.endTime.getTime() - event.startTime.getTime())
+        )
+      : event.endTime;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -111,8 +133,8 @@ export default async function EventPage({ params }: EventPageProps) {
                 <div>
                   <p className="font-medium">
                     <EventDateTimeDisplay
-                      startTime={event.startTime.toISOString()}
-                      endTime={event.endTime.toISOString()}
+                      startTime={displayStart.toISOString()}
+                      endTime={displayEnd.toISOString()}
                       variant="date"
                     />
                   </p>
@@ -124,8 +146,8 @@ export default async function EventPage({ params }: EventPageProps) {
                 <div>
                   <p className="font-medium">
                     <EventDateTimeDisplay
-                      startTime={event.startTime.toISOString()}
-                      endTime={event.endTime.toISOString()}
+                      startTime={displayStart.toISOString()}
+                      endTime={displayEnd.toISOString()}
                       variant="time"
                     />
                   </p>
