@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 
 interface EventDateTimeDisplayProps {
@@ -13,20 +14,21 @@ export function EventDateTimeDisplay({
   endTime,
   variant,
 }: EventDateTimeDisplayProps) {
-  const start = new Date(startTime);
-  const end = new Date(endTime);
+  const [formatted, setFormatted] = useState<string | null>(null);
 
-  if (variant === "date") {
-    return (
-      <span suppressHydrationWarning>
-        {format(start, "EEEE, MMMM d, yyyy")}
-      </span>
-    );
-  }
+  useEffect(() => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (variant === "date") {
+      setFormatted(format(start, "EEEE, MMMM d, yyyy"));
+    } else {
+      setFormatted(`${format(start, "h:mm a")} - ${format(end, "h:mm a")}`);
+    }
+  }, [startTime, endTime, variant]);
 
   return (
     <span suppressHydrationWarning>
-      {format(start, "h:mm a")} - {format(end, "h:mm a")}
+      {formatted ?? "\u00A0"}
     </span>
   );
 }
