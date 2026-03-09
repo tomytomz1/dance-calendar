@@ -722,6 +722,18 @@ export function EventForm({ event, mode }: EventFormProps) {
                             />
                           </PopoverContent>
                         </Popover>
+                        {field.value && (
+                          <button
+                            type="button"
+                            className="mt-1 text-xs text-muted-foreground underline self-start"
+                            onClick={() => {
+                              field.onChange(undefined);
+                              setRecurrenceUntilOpen(false);
+                            }}
+                          >
+                            Clear end date (no end date)
+                          </button>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
