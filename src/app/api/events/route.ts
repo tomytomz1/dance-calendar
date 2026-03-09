@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
+import { generateUniqueEventSlug } from "@/lib/slug";
 import { z } from "zod";
 
 const recurrenceSchema = z.object({
@@ -119,9 +120,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const slug = await generateUniqueEventSlug(validatedData.title);
+
     const event = await prisma.event.create({
       data: {
         title: validatedData.title,
+        slug,
         description: validatedData.description,
         danceStyles: validatedData.danceStyles,
         venue: validatedData.venue,
@@ -144,7 +148,7 @@ export async function POST(request: Request) {
                 frequency: validatedData.recurrence.frequency,
                 interval: validatedData.recurrence.interval,
                 daysOfWeek: validatedData.recurrence.daysOfWeek || [],
-                until: validatedData.recurrence.until,
+                until: validatedData.recurrence.until ?? null,
                 count: validatedData.recurrence.count,
                 monthlyPattern:
                   validatedData.recurrence.monthlyPattern ?? "BY_DATE",

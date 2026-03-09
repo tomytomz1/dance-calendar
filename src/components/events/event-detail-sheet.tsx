@@ -34,7 +34,8 @@ export function EventDetailSheet({
 }: EventDetailSheetProps) {
   if (!event) return null;
 
-  const eventPath = `/event/${event.id}${event.isRecurring ? `?instance=${encodeURIComponent(event.start.toISOString())}` : ""}`;
+  const slugOrId = event.slug ?? event.id;
+  const eventPath = `/event/${slugOrId}`;
   const eventUrl = `${window.location.origin}${eventPath}`;
 
   const handleShare = async () => {
@@ -127,7 +128,7 @@ export function EventDetailSheet({
             <Separator />
           </div>
 
-          <div className="flex-shrink-0 py-6 flex gap-3 justify-center max-w-sm mx-auto">
+          <div className="shrink-0 py-6 flex gap-3 justify-center max-w-sm mx-auto">
             <Button
               variant="outline"
               className="flex-1 shrink basis-0 h-12 min-w-0 px-4 has-[>svg]:px-4"

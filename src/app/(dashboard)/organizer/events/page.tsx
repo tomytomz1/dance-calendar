@@ -39,6 +39,7 @@ export default async function OrganizerEventsPage() {
     city: e.city,
     danceStyles: e.danceStyles,
     isRecurring: e.isRecurring,
+    slug: e.slug ?? undefined,
     recurrenceRule: e.recurrenceRule
       ? {
           frequency: e.recurrenceRule.frequency,

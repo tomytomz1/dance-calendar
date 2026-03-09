@@ -19,6 +19,7 @@ interface EventData {
   city: string;
   danceStyles: string[];
   isRecurring?: boolean;
+  slug?: string;
   recurrenceRule?: {
     frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY";
     monthlyPattern?: "BY_DATE" | "BY_WEEKDAY" | null;
@@ -150,7 +151,7 @@ export function OrganizerEventList({ initialEvents }: OrganizerEventListProps) {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/event/${event.id}`}>
+                  <Link href={`/event/${event.slug ?? event.id}`}>
                     <Eye className="h-4 w-4 mr-1" />
                     View
                   </Link>

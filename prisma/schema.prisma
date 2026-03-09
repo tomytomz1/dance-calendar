@@ -30,6 +30,7 @@ model Account {
 model Event {
   id             String          @id @default(cuid())
   title          String
+  slug           String?         @unique
   description    String?
   danceStyles    String[]
   venue          String

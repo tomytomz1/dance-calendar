@@ -224,6 +224,13 @@ export function EventForm({ event, mode }: EventFormProps) {
     const [endHours, endMinutes] = data.endTime.split(":").map(Number);
     endDateTime.setHours(endHours, endMinutes);
 
+    const hasExistingRecurrence = !!event?.recurrenceRule;
+    const effectiveRecurrenceFrequency =
+      data.recurrenceFrequency ?? event?.recurrenceRule?.frequency;
+    const shouldSendRecurrence =
+      (data.isRecurring || hasExistingRecurrence) &&
+      !!effectiveRecurrenceFrequency;
+
     const payload = {
       title: data.title,
       description: data.description,
@@ -237,16 +244,25 @@ export function EventForm({ event, mode }: EventFormProps) {
       ticketUrl: data.ticketUrl || undefined,
       price: data.price,
       isRecurring: data.isRecurring,
-      ...(data.isRecurring &&
-        data.recurrenceFrequency && {
+      ...(shouldSendRecurrence &&
+        effectiveRecurrenceFrequency && {
           recurrence: {
-            frequency: data.recurrenceFrequency,
+            frequency: effectiveRecurrenceFrequency,
             interval: 1,
             until: data.recurrenceUntil?.toISOString(),
-            ...(data.recurrenceFrequency === "MONTHLY" && {
-              monthlyPattern: data.monthlyPattern || "BY_DATE",
-              monthlyDayOfWeek: data.monthlyDayOfWeek,
-              monthlyWeeks: data.monthlyWeeks,
+            ...(effectiveRecurrenceFrequency === "MONTHLY" && {
+              monthlyPattern:
+                data.monthlyPattern ??
+                event?.recurrenceRule?.monthlyPattern ??
+                "BY_DATE",
+              monthlyDayOfWeek:
+                data.monthlyDayOfWeek ??
+                event?.recurrenceRule?.monthlyDayOfWeek ??
+                undefined,
+              monthlyWeeks:
+                data.monthlyWeeks ??
+                event?.recurrenceRule?.monthlyWeeks ??
+                undefined,
             }),
           },
         }),
@@ -687,6 +703,9 @@ export function EventForm({ event, mode }: EventFormProps) {
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Repeat Until</FormLabel>
+                        <FormDescription>
+                          Leave empty to repeat indefinitely with no end date.
+                        </FormDescription>
                         <Popover
                           open={recurrenceUntilOpen}
                           onOpenChange={setRecurrenceUntilOpen}
@@ -714,7 +733,8 @@ export function EventForm({ event, mode }: EventFormProps) {
                               mode="single"
                               selected={field.value}
                               onSelect={(date) => {
-                                field.onChange(date ?? undefined);
+                                if (!date) return;
+                                field.onChange(date);
                                 setRecurrenceUntilOpen(false);
                               }}
                               disabled={(date) => date < new Date()}
@@ -729,6 +749,10 @@ export function EventForm({ event, mode }: EventFormProps) {
                             size="sm"
                             className="mt-1 px-0 h-auto text-xs text-muted-foreground self-start"
                             onClick={() => {
+                              form.setValue("recurrenceUntil", undefined, {
+                                shouldDirty: true,
+                                shouldTouch: true,
+                              });
                               field.onChange(undefined);
                               setRecurrenceUntilOpen(false);
                             }}

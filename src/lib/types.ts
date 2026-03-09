@@ -21,6 +21,7 @@ export type CalendarEvent = {
   status: string;
   isRecurring: boolean;
   organizerName: string;
+  slug?: string;
   /** Unique key for React when event is an expanded recurring instance */
   instanceKey?: string;
 };

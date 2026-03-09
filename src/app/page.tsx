@@ -85,6 +85,7 @@ async function getEvents(): Promise<
           status: event.status,
           isRecurring: event.isRecurring,
           organizerName: event.organizer.name || "Unknown Organizer",
+          slug: event.slug ?? undefined,
         };
 
         if (!event.isRecurring || !event.recurrenceRule) {

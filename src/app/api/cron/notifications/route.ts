@@ -76,7 +76,7 @@ async function sendNewEventNotifications() {
         event.venue,
         event.city,
         event.danceStyles,
-        `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.id}`
+        `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.slug ?? event.id}`
       );
 
       const result = await sendEmail({
@@ -160,7 +160,7 @@ async function sendEventReminders() {
         format(event.startTime, "h:mm a"),
         event.venue,
         event.address,
-        `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.id}`
+        `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.slug ?? event.id}`
       );
 
       const result = await sendEmail({

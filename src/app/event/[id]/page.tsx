@@ -24,11 +24,15 @@ interface EventPageProps {
 }
 
 export async function generateMetadata({ params }: EventPageProps) {
-  const { id } = await params;
-  const event = await prisma.event.findUnique({
-    where: { id },
-    select: { title: true, description: true, venue: true },
-  });
+  const { id: idOrSlug } = await params;
+  const rows = await prisma.$queryRaw<
+    { id: string; title: string; description: string | null; venue: string }[]
+  >`SELECT "id", "title", "description", "venue"
+    FROM "Event"
+    WHERE "id" = ${idOrSlug} OR "slug" = ${idOrSlug}
+    LIMIT 1`;
+
+  const event = rows[0];
 
   if (!event) {
     return { title: "Event Not Found" };
@@ -44,11 +48,24 @@ export default async function EventPage({
   params,
   searchParams,
 }: EventPageProps) {
-  const { id } = await params;
+  const { id: idOrSlug } = await params;
   const { instance: instanceParam } = await searchParams;
 
+  const idRows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT "id"
+    FROM "Event"
+    WHERE "id" = ${idOrSlug} OR "slug" = ${idOrSlug}
+    LIMIT 1
+  `;
+
+  const canonical = idRows[0];
+
+  if (!canonical) {
+    notFound();
+  }
+
   const event = await prisma.event.findUnique({
-    where: { id },
+    where: { id: canonical.id },
     include: {
       organizer: {
         select: {

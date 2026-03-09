@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
+import { generateUniqueEventSlug } from "@/lib/slug";
 import { z } from "zod";
 
 const recurrenceSchema = z.object({
@@ -114,10 +115,16 @@ export async function PATCH(
 
     const { recurrence, ...eventData } = validatedData;
 
+    let slug: string | null | undefined;
+    if (eventData.title) {
+      slug = await generateUniqueEventSlug(eventData.title);
+    }
+
     const updatedEvent = await prisma.event.update({
       where: { id },
       data: {
         ...eventData,
+        ...(slug !== undefined && { slug }),
         ...(isOwner && !isAdmin && { status: "PENDING_APPROVAL" }),
         ...(recurrence && {
           recurrenceRule: {
