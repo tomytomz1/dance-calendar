@@ -714,8 +714,8 @@ export function EventForm({ event, mode }: EventFormProps) {
                               mode="single"
                               selected={field.value}
                               onSelect={(date) => {
-                                field.onChange(date);
-                                if (date) setRecurrenceUntilOpen(false);
+                                field.onChange(date ?? undefined);
+                                setRecurrenceUntilOpen(false);
                               }}
                               disabled={(date) => date < new Date()}
                               initialFocus
@@ -723,16 +723,18 @@ export function EventForm({ event, mode }: EventFormProps) {
                           </PopoverContent>
                         </Popover>
                         {field.value && (
-                          <button
+                          <Button
                             type="button"
-                            className="mt-1 text-xs text-muted-foreground underline self-start"
+                            variant="link"
+                            size="sm"
+                            className="mt-1 px-0 h-auto text-xs text-muted-foreground self-start"
                             onClick={() => {
                               field.onChange(undefined);
                               setRecurrenceUntilOpen(false);
                             }}
                           >
                             Clear end date (no end date)
-                          </button>
+                          </Button>
                         )}
                         <FormMessage />
                       </FormItem>
