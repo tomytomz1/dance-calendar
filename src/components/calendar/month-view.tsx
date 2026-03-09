@@ -45,7 +45,10 @@ export function MonthView({
     day = addDays(day, 1);
   }
 
-  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleDragEnd = (
+    _: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
     const threshold = 50;
     if (info.offset.x > threshold) {
       onSwipe(-1);
@@ -55,7 +58,9 @@ export function MonthView({
   };
 
   const getEventsForDay = (date: Date) => {
-    return events.filter((event) => isSameDay(new Date(event.start), date));
+    return events.filter((event) =>
+      isSameDay(new Date(event.start), date)
+    );
   };
 
   const variants = {

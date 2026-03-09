@@ -34,7 +34,9 @@ export function generateRecurrenceInstances(
   let currentStart = new Date(startTime);
   let instanceCount = 0;
 
-  const maxDate = config.until || addMonths(startTime, 12);
+  const hasValidUntil =
+    config.until && isAfter(config.until, startTime);
+  const maxDate = hasValidUntil ? (config.until as Date) : addMonths(startTime, 12);
   const maxCount = config.count || maxInstances;
 
   while (instanceCount < maxCount && isBefore(currentStart, maxDate)) {

@@ -70,7 +70,9 @@ export function MobileMonthView({
   };
 
   const getEventsForDay = (date: Date) => {
-    return events.filter((event) => isSameDay(new Date(event.start), date));
+    return events.filter((event) =>
+      isSameDay(new Date(event.start), date)
+    );
   };
 
   const variants = {

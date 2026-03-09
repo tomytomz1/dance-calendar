@@ -36,7 +36,10 @@ export function WeekView({
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   }, [weekStart]);
 
-  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleDragEnd = (
+    _: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
     const threshold = 50;
     if (info.offset.x > threshold) {
       onSwipe(-1);
@@ -46,7 +49,9 @@ export function WeekView({
   };
 
   const getEventsForDay = (date: Date) => {
-    return events.filter((event) => isSameDay(new Date(event.start), date));
+    return events.filter((event) =>
+      isSameDay(new Date(event.start), date)
+    );
   };
 
   const variants = {
