@@ -56,6 +56,17 @@ export async function POST(
       );
     }
 
+    try {
+      await prisma.eventInstance.deleteMany({
+        where: {
+          eventId: id,
+          startTime: { gt: new Date() },
+        },
+      });
+    } catch (err) {
+      console.error("Failed to clear existing future instances:", err);
+    }
+
     const count = await generateInstancesForEvent(id);
 
     return NextResponse.json({

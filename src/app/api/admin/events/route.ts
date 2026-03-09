@@ -18,6 +18,7 @@ export async function GET() {
             name: true,
           },
         },
+        recurrenceRule: true,
       },
       orderBy: {
         createdAt: "desc",

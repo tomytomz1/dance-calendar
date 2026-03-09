@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dance-calendar-v1';
+const CACHE_NAME = 'dance-calendar-v2';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -30,6 +30,32 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Always try network first for navigations so users see the latest version
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+
+          // Fallback minimal offline response if nothing cached
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: new Headers({ 'Content-Type': 'text/html' }),
+          });
+        })
+    );
+    return;
+  }
 
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(

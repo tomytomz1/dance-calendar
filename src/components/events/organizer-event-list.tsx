@@ -18,6 +18,13 @@ interface EventData {
   venue: string;
   city: string;
   danceStyles: string[];
+  isRecurring?: boolean;
+  recurrenceRule?: {
+    frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY";
+    monthlyPattern?: "BY_DATE" | "BY_WEEKDAY" | null;
+    monthlyDayOfWeek?: number | null;
+    monthlyWeeks?: number[];
+  } | null;
 }
 
 interface OrganizerEventListProps {
@@ -35,6 +42,61 @@ function getStatusVariant(status: string) {
     default:
       return "outline" as const;
   }
+}
+
+function getRecurrenceLabel(event: EventData): string | null {
+  if (!event.isRecurring || !event.recurrenceRule) return null;
+
+  const { frequency, monthlyPattern, monthlyDayOfWeek, monthlyWeeks } =
+    event.recurrenceRule;
+
+  if (
+    frequency === "MONTHLY" &&
+    monthlyPattern === "BY_WEEKDAY" &&
+    monthlyDayOfWeek != null &&
+    monthlyWeeks &&
+    monthlyWeeks.length > 0
+  ) {
+    const weekdayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const weekLabels: Record<number, string> = {
+      1: "1st",
+      2: "2nd",
+      3: "3rd",
+      4: "4th",
+      [-1]: "last",
+    };
+
+    const parts = [...monthlyWeeks]
+      .map((w) => weekLabels[w] ?? `${w}th`)
+      .sort((a, b) => a.localeCompare(b));
+
+    const weekPart = parts.join(" & ");
+
+    return `Every ${weekPart} ${weekdayNames[monthlyDayOfWeek]} of the month`;
+  }
+
+  if (frequency === "MONTHLY") {
+    const day = new Date(event.startTime).getDate();
+    const suffix =
+      day % 10 === 1 && day !== 11
+        ? "st"
+        : day % 10 === 2 && day !== 12
+        ? "nd"
+        : day % 10 === 3 && day !== 13
+        ? "rd"
+        : "th";
+    return `Every month on the ${day}${suffix}`;
+  }
+
+  return null;
 }
 
 export function OrganizerEventList({ initialEvents }: OrganizerEventListProps) {
@@ -73,6 +135,11 @@ export function OrganizerEventList({ initialEvents }: OrganizerEventListProps) {
                   <MapPin className="h-4 w-4" />
                   <span>{event.venue}, {event.city}</span>
                 </div>
+                {getRecurrenceLabel(event) && (
+                  <p className="text-xs">
+                    Recurs: {getRecurrenceLabel(event)}
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2 mb-4">
                 {event.danceStyles.map((style) => (

@@ -48,7 +48,7 @@ async function getEvents(): Promise<
 > {
   const now = new Date();
   const rangeStart = startOfDay(addMonths(now, -1));
-  const rangeEnd = endOfDay(addMonths(now, 4));
+  const rangeEnd = endOfDay(addMonths(now, 12));
 
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_DB_RETRIES; attempt++) {
@@ -102,6 +102,10 @@ async function getEvents(): Promise<
           daysOfWeek: event.recurrenceRule.daysOfWeek,
           until: event.recurrenceRule.until ?? undefined,
           count: event.recurrenceRule.count ?? undefined,
+          monthlyPattern: event.recurrenceRule.monthlyPattern ?? "BY_DATE",
+          monthlyDayOfWeek:
+            event.recurrenceRule.monthlyDayOfWeek ?? undefined,
+          monthlyWeeks: event.recurrenceRule.monthlyWeeks ?? [],
         };
 
         const instances = generateRecurrenceInstances(

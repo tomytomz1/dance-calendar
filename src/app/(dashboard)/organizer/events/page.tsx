@@ -25,6 +25,9 @@ export default async function OrganizerEventsPage() {
     orderBy: {
       startTime: "desc",
     },
+    include: {
+      recurrenceRule: true,
+    },
   });
 
   const serializedEvents = events.map((e) => ({
@@ -35,6 +38,15 @@ export default async function OrganizerEventsPage() {
     venue: e.venue,
     city: e.city,
     danceStyles: e.danceStyles,
+    isRecurring: e.isRecurring,
+    recurrenceRule: e.recurrenceRule
+      ? {
+          frequency: e.recurrenceRule.frequency,
+          monthlyPattern: e.recurrenceRule.monthlyPattern,
+          monthlyDayOfWeek: e.recurrenceRule.monthlyDayOfWeek,
+          monthlyWeeks: e.recurrenceRule.monthlyWeeks,
+        }
+      : null,
   }));
 
   return (

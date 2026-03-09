@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -32,6 +33,13 @@ interface AdminEvent {
   startTime: string;
   danceStyles: string[];
   createdAt: string;
+  isRecurring?: boolean;
+  recurrenceRule?: {
+    frequency: "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY";
+    monthlyPattern?: "BY_DATE" | "BY_WEEKDAY" | null;
+    monthlyDayOfWeek?: number | null;
+    monthlyWeeks?: number[];
+  } | null;
   organizer: {
     id: string;
     name: string | null;
@@ -58,6 +66,61 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: "Cancelled",
   DRAFT: "Draft",
 };
+
+function getRecurrenceLabel(event: AdminEvent): string | null {
+  if (!event.isRecurring || !event.recurrenceRule) return null;
+
+  const { frequency, monthlyPattern, monthlyDayOfWeek, monthlyWeeks } =
+    event.recurrenceRule;
+
+  if (
+    frequency === "MONTHLY" &&
+    monthlyPattern === "BY_WEEKDAY" &&
+    monthlyDayOfWeek != null &&
+    monthlyWeeks &&
+    monthlyWeeks.length > 0
+  ) {
+    const weekdayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const weekLabels: Record<number, string> = {
+      1: "1st",
+      2: "2nd",
+      3: "3rd",
+      4: "4th",
+      [-1]: "last",
+    };
+
+    const parts = [...monthlyWeeks]
+      .map((w) => weekLabels[w] ?? `${w}th`)
+      .sort((a, b) => a.localeCompare(b));
+
+    const weekPart = parts.join(" & ");
+
+    return `Every ${weekPart} ${weekdayNames[monthlyDayOfWeek]} of the month`;
+  }
+
+  if (frequency === "MONTHLY") {
+    const day = new Date(event.startTime).getDate();
+    const suffix =
+      day % 10 === 1 && day !== 11
+        ? "st"
+        : day % 10 === 2 && day !== 12
+        ? "nd"
+        : day % 10 === 3 && day !== 13
+        ? "rd"
+        : "th";
+    return `Every month on the ${day}${suffix}`;
+  }
+
+  return null;
+}
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -103,7 +166,13 @@ export default function AdminPage() {
 
       if (allEventsRes.ok) {
         const data = await allEventsRes.json();
-        setAllEvents(data);
+            setAllEvents(
+              data.map((e: any) => ({
+                ...e,
+                startTime: e.startTime,
+                createdAt: e.createdAt,
+              }))
+            );
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -308,6 +377,11 @@ export default function AdminPage() {
                     </p>
                     <p>{event.venue}, {event.city}</p>
                     <p>By: {event.organizer.name}</p>
+                    {getRecurrenceLabel(event) && (
+                      <p className="text-xs">
+                        Recurs: {getRecurrenceLabel(event)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {event.danceStyles.map((style) => (
@@ -366,6 +440,11 @@ export default function AdminPage() {
                     </p>
                     <p>{event.venue}, {event.city}</p>
                     <p>By: {event.organizer.name}</p>
+                    {getRecurrenceLabel(event) && (
+                      <p className="text-xs">
+                        Recurs: {getRecurrenceLabel(event)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {event.danceStyles.map((style) => (
@@ -374,8 +453,13 @@ export default function AdminPage() {
                       </Badge>
                     ))}
                   </div>
-                  {event.status !== "PENDING_APPROVAL" && (
-                    <div className="flex gap-2">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/organizer/events/${event.id}/edit`}>
+                        Edit
+                      </Link>
+                    </Button>
+                    {event.status !== "PENDING_APPROVAL" && (
                       <Button
                         size="sm"
                         variant="destructive"
@@ -384,8 +468,8 @@ export default function AdminPage() {
                         <Trash2 className="h-4 w-4 mr-1" />
                         Delete
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))

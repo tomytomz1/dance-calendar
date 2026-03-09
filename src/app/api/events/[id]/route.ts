@@ -4,6 +4,17 @@ import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
 import { z } from "zod";
 
+const recurrenceSchema = z.object({
+  frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]),
+  interval: z.number().min(1).default(1),
+  daysOfWeek: z.array(z.number()).optional(),
+  until: z.string().transform((val) => new Date(val)).optional(),
+  count: z.number().optional(),
+  monthlyPattern: z.enum(["BY_DATE", "BY_WEEKDAY"]).optional(),
+  monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
+  monthlyWeeks: z.array(z.number()).optional(),
+});
+
 const updateEventSchema = z.object({
   title: z.string().min(3).optional(),
   description: z.string().optional(),
@@ -19,6 +30,7 @@ const updateEventSchema = z.object({
   ticketUrl: z.string().url().optional().or(z.literal("")),
   price: z.string().optional(),
   status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "CANCELLED"]).optional(),
+  recurrence: recurrenceSchema.optional(),
 });
 
 export async function GET(
@@ -100,11 +112,39 @@ export async function PATCH(
       delete validatedData.status;
     }
 
+    const { recurrence, ...eventData } = validatedData;
+
     const updatedEvent = await prisma.event.update({
       where: { id },
       data: {
-        ...validatedData,
+        ...eventData,
         ...(isOwner && !isAdmin && { status: "PENDING_APPROVAL" }),
+        ...(recurrence && {
+          recurrenceRule: {
+            upsert: {
+              create: {
+                frequency: recurrence.frequency,
+                interval: recurrence.interval,
+                daysOfWeek: recurrence.daysOfWeek || [],
+                until: recurrence.until,
+                count: recurrence.count,
+                monthlyPattern: recurrence.monthlyPattern ?? "BY_DATE",
+                monthlyDayOfWeek: recurrence.monthlyDayOfWeek ?? null,
+                monthlyWeeks: recurrence.monthlyWeeks || [],
+              },
+              update: {
+                frequency: recurrence.frequency,
+                interval: recurrence.interval,
+                daysOfWeek: recurrence.daysOfWeek || [],
+                until: recurrence.until,
+                count: recurrence.count,
+                monthlyPattern: recurrence.monthlyPattern ?? "BY_DATE",
+                monthlyDayOfWeek: recurrence.monthlyDayOfWeek ?? null,
+                monthlyWeeks: recurrence.monthlyWeeks || [],
+              },
+            },
+          },
+        }),
       },
       include: {
         organizer: {
@@ -117,13 +157,25 @@ export async function PATCH(
       },
     });
 
-    if (
+    const shouldRegenerateInstances =
       updatedEvent.isRecurring &&
       updatedEvent.recurrenceRule &&
-      validatedData.status === "APPROVED"
-    ) {
+      (validatedData.status === "APPROVED" || !!recurrence);
+
+    if (shouldRegenerateInstances) {
+      try {
+        await prisma.eventInstance.deleteMany({
+          where: {
+            eventId: id,
+            startTime: { gt: new Date() },
+          },
+        });
+      } catch (err) {
+        console.error("Failed to clear existing future instances:", err);
+      }
+
       await generateInstancesForEvent(id).catch((err) =>
-        console.error("Failed to generate instances on approve:", err)
+        console.error("Failed to generate instances on update:", err)
       );
     }
 

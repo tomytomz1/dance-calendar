@@ -66,6 +66,9 @@ const eventFormSchema = z.object({
   isRecurring: z.boolean(),
   recurrenceFrequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]).optional(),
   recurrenceUntil: z.date().optional(),
+  monthlyPattern: z.enum(["BY_DATE", "BY_WEEKDAY"]).optional(),
+  monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
+  monthlyWeeks: z.array(z.number()).optional(),
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -141,6 +144,13 @@ export function EventForm({ event, mode }: EventFormProps) {
         recurrenceUntil: event.recurrenceRule?.until
           ? new Date(event.recurrenceRule.until)
           : undefined,
+        monthlyPattern: event.recurrenceRule?.monthlyPattern ?? "BY_DATE",
+        monthlyDayOfWeek: event.recurrenceRule?.monthlyDayOfWeek ?? undefined,
+        monthlyWeeks:
+          event.recurrenceRule?.monthlyWeeks &&
+          event.recurrenceRule.monthlyWeeks.length > 0
+            ? event.recurrenceRule.monthlyWeeks
+            : undefined,
       }
     : {
         title: "",
@@ -163,6 +173,8 @@ export function EventForm({ event, mode }: EventFormProps) {
   });
 
   const isRecurring = form.watch("isRecurring");
+  const recurrenceFrequency = form.watch("recurrenceFrequency");
+  const monthlyPattern = form.watch("monthlyPattern");
   const watchedStartDate = form.watch("startDate");
   const watchedStartTime = form.watch("startTime");
   const watchedEndDate = form.watch("endDate");
@@ -231,6 +243,11 @@ export function EventForm({ event, mode }: EventFormProps) {
             frequency: data.recurrenceFrequency,
             interval: 1,
             until: data.recurrenceUntil?.toISOString(),
+            ...(data.recurrenceFrequency === "MONTHLY" && {
+              monthlyPattern: data.monthlyPattern || "BY_DATE",
+              monthlyDayOfWeek: data.monthlyDayOfWeek,
+              monthlyWeeks: data.monthlyWeeks,
+            }),
           },
         }),
     };
@@ -632,82 +649,209 @@ export function EventForm({ event, mode }: EventFormProps) {
             />
 
             {isRecurring && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-                <FormField
-                  control={form.control}
-                  name="recurrenceFrequency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Frequency</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="h-12">
-                            <SelectValue placeholder="Select frequency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.entries(RECURRENCE_FREQUENCY_LABELS).map(
-                            ([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            )
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="recurrenceUntil"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Repeat Until</FormLabel>
-                      <Popover
-                        open={recurrenceUntilOpen}
-                        onOpenChange={setRecurrenceUntilOpen}
-                      >
-                        <PopoverTrigger asChild>
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="recurrenceFrequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Frequency</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
                           <FormControl>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "h-12 pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>No end date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
+                            <SelectTrigger className="h-12">
+                              <SelectValue placeholder="Select frequency" />
+                            </SelectTrigger>
                           </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={(date) => {
-                              field.onChange(date);
-                              if (date) setRecurrenceUntilOpen(false);
-                            }}
-                            disabled={(date) => date < new Date()}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                          <SelectContent>
+                            {Object.entries(RECURRENCE_FREQUENCY_LABELS).map(
+                              ([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="recurrenceUntil"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Repeat Until</FormLabel>
+                        <Popover
+                          open={recurrenceUntilOpen}
+                          onOpenChange={setRecurrenceUntilOpen}
+                        >
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "h-12 pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>No end date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date) => {
+                                field.onChange(date);
+                                if (date) setRecurrenceUntilOpen(false);
+                              }}
+                              disabled={(date) => date < new Date()}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {recurrenceFrequency === "MONTHLY" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4 bg-background">
+                    <FormField
+                      control={form.control}
+                      name="monthlyPattern"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Monthly Pattern</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value || "BY_DATE"}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="h-12">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="BY_DATE">
+                                Same date every month
+                              </SelectItem>
+                              <SelectItem value="BY_WEEKDAY">
+                                On specific weekdays (e.g. last Sunday)
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Choose whether this repeats by calendar date or by
+                            weekday pattern.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {monthlyPattern === "BY_WEEKDAY" && (
+                      <div className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="monthlyDayOfWeek"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Day of Week</FormLabel>
+                              <Select
+                                onValueChange={(val) =>
+                                  field.onChange(Number(val))
+                                }
+                                defaultValue={
+                                  field.value !== undefined
+                                    ? String(field.value)
+                                    : undefined
+                                }
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-12">
+                                    <SelectValue placeholder="Select day" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="0">Sunday</SelectItem>
+                                  <SelectItem value="1">Monday</SelectItem>
+                                  <SelectItem value="2">Tuesday</SelectItem>
+                                  <SelectItem value="3">Wednesday</SelectItem>
+                                  <SelectItem value="4">Thursday</SelectItem>
+                                  <SelectItem value="5">Friday</SelectItem>
+                                  <SelectItem value="6">Saturday</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="monthlyWeeks"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Weeks in Month</FormLabel>
+                              <FormDescription>
+                                Select one or more weeks (e.g. 1st and 3rd
+                                Saturday).
+                              </FormDescription>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {[
+                                  { label: "1st", value: 1 },
+                                  { label: "2nd", value: 2 },
+                                  { label: "3rd", value: 3 },
+                                  { label: "4th", value: 4 },
+                                  { label: "Last", value: -1 },
+                                ].map((option) => {
+                                  const selected =
+                                    field.value?.includes(option.value) ??
+                                    false;
+                                  return (
+                                    <Badge
+                                      key={option.value}
+                                      variant={
+                                        selected ? "default" : "outline"
+                                      }
+                                      className="cursor-pointer px-3 py-1 text-sm"
+                                      onClick={() => {
+                                        const current = field.value || [];
+                                        const next = selected
+                                          ? current.filter(
+                                              (v) => v !== option.value
+                                            )
+                                          : [...current, option.value];
+                                        field.onChange(next);
+                                      }}
+                                    >
+                                      {option.label}
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

@@ -4,6 +4,17 @@ import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
 import { z } from "zod";
 
+const recurrenceSchema = z.object({
+  frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]),
+  interval: z.number().min(1).default(1),
+  daysOfWeek: z.array(z.number()).optional(),
+  until: z.string().transform((val) => new Date(val)).optional(),
+  count: z.number().optional(),
+  monthlyPattern: z.enum(["BY_DATE", "BY_WEEKDAY"]).optional(),
+  monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
+  monthlyWeeks: z.array(z.number()).optional(),
+});
+
 const eventSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().optional(),
@@ -19,15 +30,7 @@ const eventSchema = z.object({
   ticketUrl: z.string().url().optional().or(z.literal("")),
   price: z.string().optional(),
   isRecurring: z.boolean().optional().default(false),
-  recurrence: z
-    .object({
-      frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]),
-      interval: z.number().min(1).default(1),
-      daysOfWeek: z.array(z.number()).optional(),
-      until: z.string().transform((val) => new Date(val)).optional(),
-      count: z.number().optional(),
-    })
-    .optional(),
+  recurrence: recurrenceSchema.optional(),
 });
 
 export async function GET(request: Request) {
@@ -143,6 +146,11 @@ export async function POST(request: Request) {
                 daysOfWeek: validatedData.recurrence.daysOfWeek || [],
                 until: validatedData.recurrence.until,
                 count: validatedData.recurrence.count,
+                monthlyPattern:
+                  validatedData.recurrence.monthlyPattern ?? "BY_DATE",
+                monthlyDayOfWeek:
+                  validatedData.recurrence.monthlyDayOfWeek ?? null,
+                monthlyWeeks: validatedData.recurrence.monthlyWeeks || [],
               },
             },
           }),

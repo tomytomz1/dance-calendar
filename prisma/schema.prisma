@@ -91,6 +91,9 @@ model RecurrenceRule {
   frequency  RecurrenceFrequency
   interval   Int                 @default(1)
   daysOfWeek Int[]
+  monthlyPattern   MonthlyPattern @default(BY_DATE)
+  monthlyDayOfWeek Int?
+  monthlyWeeks     Int[]
   until      DateTime?
   count      Int?
   createdAt  DateTime            @default(now())
@@ -166,6 +169,11 @@ enum RecurrenceFrequency {
   WEEKLY
   BIWEEKLY
   MONTHLY
+}
+
+enum MonthlyPattern {
+  BY_DATE
+  BY_WEEKDAY
 }
 
 enum UserRole {
