@@ -51,7 +51,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center justify-between w-full px-0 py-2 sm:px-2">
+      <div className="flex items-center justify-between w-full px-2 py-2 sm:px-2">
         <div className="flex items-center gap-1">
           <Sheet>
             <SheetTrigger asChild>
