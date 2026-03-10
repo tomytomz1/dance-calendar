@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,8 +51,8 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center justify-between w-full px-4">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between w-full px-0 py-2 sm:px-2">
+        <div className="flex items-center gap-1">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
@@ -98,32 +99,22 @@ export function Header() {
 
           <Link
             href="/"
-            className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity min-w-0"
+            className="flex h-full items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity min-w-0"
             onClick={(e) => {
               if (e.ctrlKey || e.metaKey || e.button !== 0) return;
               e.preventDefault();
               window.location.href = "/";
             }}
-            aria-label="Go to homepage"
+            aria-label="Go to MichiganDance.Life homepage"
           >
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <svg
-                className="w-4 h-4 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
-                />
-              </svg>
-            </div>
-            <span className="font-bold text-lg hidden sm:inline truncate">
-              Dance Calendar
-            </span>
+            <Image
+              src="/michigandancelife-header-logo.png"
+              alt="MichiganDance.Life dance events calendar logo"
+              width={400}
+              height={93}
+              className="h-14 w-auto sm:h-16"
+              priority
+            />
           </Link>
         </div>
 

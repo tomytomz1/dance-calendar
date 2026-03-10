@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
 import { generateUniqueEventSlug } from "@/lib/slug";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const recurrenceSchema = z.object({
@@ -36,6 +37,28 @@ const eventSchema = z.object({
 
 export async function GET(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const key = `events:get:${ip}`;
+    const result = checkRateLimit({
+      key,
+      limit: 60,
+      windowMs: 60 * 1000, // 60 req/min per IP
+    });
+
+    if (!result.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.ceil(
+              (result.resetAt - Date.now()) / 1000
+            ).toString(),
+          },
+        }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const city = searchParams.get("city");
     const style = searchParams.get("style");

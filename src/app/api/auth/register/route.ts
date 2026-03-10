@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -12,6 +13,29 @@ const registerSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const ipKey = `register:ip:${ip}`;
+
+    const ipResult = checkRateLimit({
+      key: ipKey,
+      limit: 3,
+      windowMs: 60 * 60 * 1000, // 3 registrations per IP per hour
+    });
+
+    if (!ipResult.allowed) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.ceil(
+              (ipResult.resetAt - Date.now()) / 1000
+            ).toString(),
+          },
+        }
+      );
+    }
+
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
 

@@ -1,3 +1,5 @@
+import { prisma } from "./prisma";
+
 export function slugify(title: string): string {
   return title
     .toLowerCase()
@@ -8,18 +10,44 @@ export function slugify(title: string): string {
     .slice(0, 120);
 }
 
-export async function generateUniqueEventSlug(title: string): Promise<string | null> {
+export async function generateUniqueEventSlug(
+  title: string
+): Promise<string | null> {
   const base = slugify(title);
 
   if (!base) {
     return null;
   }
 
-  let candidate = base;
-  let counter = 2;
+  // Find existing slugs that start with the same base, e.g.
+  // "my-event", "my-event-2", "my-event-3".
+  const existing = await prisma.event.findMany({
+    where: {
+      slug: {
+        startsWith: base,
+      },
+    },
+    select: { slug: true },
+  });
 
-  // Keep slug generation pure and let callers ensure uniqueness.
-  // Callers can append counters or other disambiguators as needed.
-  // For now, just return the base slug.
-  return base;
+  const used = new Set(
+    existing
+      .map((e) => e.slug)
+      .filter((s): s is string => typeof s === "string" && s.length > 0)
+  );
+
+  if (!used.has(base)) {
+    return base;
+  }
+
+  let counter = 2;
+  let candidate = `${base}-${counter}`;
+
+  while (used.has(candidate)) {
+    counter += 1;
+    candidate = `${base}-${counter}`;
+  }
+
+  return candidate;
 }
+

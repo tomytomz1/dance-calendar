@@ -124,12 +124,16 @@ function getRecurrenceLabel(event: AdminEvent): string | null {
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
+  const PAGE_SIZE = 50;
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
   const [dancers, setDancers] = useState<Dancer[]>([]);
   const [totalDancers, setTotalDancers] = useState(0);
   const [pendingEvents, setPendingEvents] = useState<AdminEvent[]>([]);
   const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+  const [pendingPage, setPendingPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<AdminEvent | null>(null);
   const [deleteOrgTarget, setDeleteOrgTarget] = useState<Organizer | null>(null);
   const [deleteDancerTarget, setDeleteDancerTarget] = useState<Dancer | null>(null);
@@ -140,16 +144,26 @@ export default function AdminPage() {
       redirect("/");
     }
 
-    fetchData();
-  }, [session, status]);
+    fetchData(eventsPage, usersPage, pendingPage);
+  }, [session, status, eventsPage, usersPage, pendingPage]);
 
-  async function fetchData() {
+  async function fetchData(
+    eventsPageParam: number,
+    usersPageParam: number,
+    pendingPageParam: number
+  ) {
     setIsLoading(true);
     try {
       const [usersRes, pendingRes, allEventsRes] = await Promise.all([
-        fetch("/api/admin/users"),
-        fetch("/api/admin/events/pending"),
-        fetch("/api/admin/events"),
+        fetch(
+          `/api/admin/users?limit=${PAGE_SIZE}&page=${usersPageParam}`
+        ),
+        fetch(
+          `/api/admin/events/pending?limit=${PAGE_SIZE}&page=${pendingPageParam}`
+        ),
+        fetch(
+          `/api/admin/events?limit=${PAGE_SIZE}&page=${eventsPageParam}`
+        ),
       ]);
 
       if (usersRes.ok) {
@@ -474,6 +488,28 @@ export default function AdminPage() {
               </Card>
             ))
           )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={eventsPage === 1}
+              onClick={() => setEventsPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={allEvents.length < PAGE_SIZE}
+              onClick={() => {
+                if (allEvents.length === PAGE_SIZE) {
+                  setEventsPage((p) => p + 1);
+                }
+              }}
+            >
+              Next
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="organizers" className="space-y-4">
@@ -568,6 +604,28 @@ export default function AdminPage() {
               ))}
             </div>
           )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={usersPage === 1}
+              onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={organizers.length < PAGE_SIZE}
+              onClick={() => {
+                if (organizers.length === PAGE_SIZE) {
+                  setUsersPage((p) => p + 1);
+                }
+              }}
+            >
+              Next
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="dancers" className="space-y-4">
@@ -611,6 +669,28 @@ export default function AdminPage() {
               </Card>
             ))
           )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={usersPage === 1}
+              onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={dancers.length < PAGE_SIZE}
+              onClick={() => {
+                if (dancers.length === PAGE_SIZE) {
+                  setUsersPage((p) => p + 1);
+                }
+              }}
+            >
+              Next
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
 

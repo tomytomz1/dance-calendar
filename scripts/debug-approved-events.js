@@ -35,67 +35,10 @@ const {
   startOfDay,
   endOfDay,
   isWithinInterval,
-  addDays,
-  addWeeks,
-  isBefore,
-  differenceInMinutes,
 } = require("date-fns");
+const { generateRecurrenceInstances } = require("./lib/recurrence");
 
 const prisma = new PrismaClient();
-
-/**
- * Minimal JS version of generateRecurrenceInstances from src/lib/recurrence.ts
- */
-function generateRecurrenceInstances(startTime, endTime, config, maxInstances = 52) {
-  const instances = [];
-  const durationMinutes = differenceInMinutes(endTime, startTime);
-
-  let currentStart = new Date(startTime);
-  let instanceCount = 0;
-
-  const maxDate = config.until || addMonths(startTime, 12);
-  const maxCount = config.count || maxInstances;
-
-  while (instanceCount < maxCount && isBefore(currentStart, maxDate)) {
-    if (config.frequency === "WEEKLY" && config.daysOfWeek && config.daysOfWeek.length) {
-      const dayOfWeek = currentStart.getDay();
-      if (config.daysOfWeek.includes(dayOfWeek)) {
-        instances.push({
-          startTime: new Date(currentStart),
-          endTime: new Date(currentStart.getTime() + durationMinutes * 60 * 1000),
-        });
-        instanceCount++;
-      }
-      currentStart = addDays(currentStart, 1);
-    } else {
-      instances.push({
-        startTime: new Date(currentStart),
-        endTime: new Date(currentStart.getTime() + durationMinutes * 60 * 1000),
-      });
-      instanceCount++;
-
-      switch (config.frequency) {
-        case "DAILY":
-          currentStart = addDays(currentStart, config.interval);
-          break;
-        case "WEEKLY":
-          currentStart = addWeeks(currentStart, config.interval);
-          break;
-        case "BIWEEKLY":
-          currentStart = addWeeks(currentStart, 2 * config.interval);
-          break;
-        case "MONTHLY":
-          currentStart = addMonths(currentStart, config.interval);
-          break;
-        default:
-          // Fallback: advance by one day to avoid infinite loop
-          currentStart = addDays(currentStart, 1);
-      }
-    }
-  }
-
-  return instances;
-}
 
 async function main() {
   console.log("Debugging approved events visibility...\n");

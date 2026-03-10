@@ -1,3 +1,8 @@
+// Caching policy:
+// - Navigations: network-first, cache as fallback, simple offline HTML/text.
+// - API: only GET /api/events is cacheable; all other /api/* are network-only.
+// - Other GET requests (static assets): cache-first with background update.
+
 const CACHE_NAME = 'dance-calendar-v2';
 const STATIC_ASSETS = [
   '/',
@@ -58,26 +63,31 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response.ok && url.pathname === '/api/events') {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match(event.request).then((r) =>
-            r || new Response(JSON.stringify({ error: 'Offline' }), {
-              status: 503,
-              headers: { 'Content-Type': 'application/json' },
-            })
-          );
-        })
-    );
+    // Only cache GET /api/events; all other APIs are network-only.
+    if (url.pathname === '/api/events') {
+      event.respondWith(
+        fetch(event.request)
+          .then((response) => {
+            if (response.ok) {
+              const responseClone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseClone);
+              });
+            }
+            return response;
+          })
+          .catch(() => {
+            return caches.match(event.request).then((r) =>
+              r || new Response(JSON.stringify({ error: 'Offline' }), {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' },
+              })
+            );
+          })
+      );
+    } else {
+      event.respondWith(fetch(event.request));
+    }
     return;
   }
 

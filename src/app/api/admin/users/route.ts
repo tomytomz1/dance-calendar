@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await auth();
 
@@ -10,7 +10,16 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const [organizers, dancers] = await Promise.all([
+    const { searchParams } = new URL(request.url);
+    const pageParam = searchParams.get("page");
+    const limitParam = searchParams.get("limit");
+
+    const page = Math.max(Number(pageParam) || 1, 1);
+    const rawLimit = Number(limitParam) || 50;
+    const limit = Math.min(Math.max(rawLimit, 1), 200);
+    const skip = (page - 1) * limit;
+
+    const [organizers, dancers, totalDancers] = await Promise.all([
       prisma.user.findMany({
         where: {
           role: "ORGANIZER",
@@ -27,17 +36,24 @@ export async function GET() {
           },
         },
         orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
       }),
       prisma.user.findMany({
         where: { role: "USER" },
         select: { id: true, email: true, name: true, createdAt: true },
         orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+      }),
+      prisma.user.count({
+        where: { role: "USER" },
       }),
     ]);
 
     return NextResponse.json({
       organizers,
-      totalDancers: dancers.length,
+      totalDancers,
       dancers,
     });
   } catch (error) {

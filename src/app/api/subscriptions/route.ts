@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const subscriptionSchema = z.object({
@@ -11,8 +12,30 @@ const subscriptionSchema = z.object({
   weeklyDigest: z.boolean().optional().default(false),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const key = `subscriptions:get:${ip}`;
+    const result = checkRateLimit({
+      key,
+      limit: 20,
+      windowMs: 60 * 1000, // 20 req/min per IP
+    });
+
+    if (!result.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please slow down." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.ceil(
+              (result.resetAt - Date.now()) / 1000
+            ).toString(),
+          },
+        }
+      );
+    }
+
     const session = await auth();
 
     if (!session) {
@@ -40,6 +63,28 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const key = `subscriptions:post:${ip}`;
+    const result = checkRateLimit({
+      key,
+      limit: 20,
+      windowMs: 60 * 1000, // 20 req/min per IP
+    });
+
+    if (!result.allowed) {
+      return NextResponse.json(
+        { error: "Too many subscription updates. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.ceil(
+              (result.resetAt - Date.now()) / 1000
+            ).toString(),
+          },
+        }
+      );
+    }
+
     const session = await auth();
     const body = await request.json();
     const validatedData = subscriptionSchema.parse(body);
@@ -82,18 +127,21 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const email = searchParams.get("email");
+    const session = await auth();
 
-    if (!email) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 }
-      );
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await prisma.subscription.delete({
-      where: { email },
+    // Only allow unsubscribing the authenticated user's own subscription.
+    // We don't surface whether a subscription existed to avoid leaking info.
+    await prisma.subscription.deleteMany({
+      where: {
+        OR: [
+          { userId: session.user.id },
+          { email: session.user.email },
+        ],
+      },
     });
 
     return NextResponse.json({ message: "Unsubscribed successfully" });
