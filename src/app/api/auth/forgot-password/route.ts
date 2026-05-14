@@ -52,8 +52,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: SUCCESS_MESSAGE });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: { equals: normalizedEmail, mode: "insensitive" },
+      },
       select: { id: true, email: true, name: true, password: true },
     });
 
@@ -66,11 +68,15 @@ export async function POST(request: Request) {
       const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
       const { subject, html } = generatePasswordResetEmail(user.name, resetUrl);
 
-      await sendEmail({
+      const result = await sendEmail({
         to: user.email,
         subject,
         html,
       });
+
+      if (!result.success) {
+        console.error("Password reset email failed:", result.error);
+      }
     }
 
     return NextResponse.json({ message: SUCCESS_MESSAGE });
