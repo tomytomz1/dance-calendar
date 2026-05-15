@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { safeHttpOrHttpsUrl } from "@/lib/safe-external-url";
 import { EventDateTimeDisplay } from "@/components/events/event-datetime-display";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
@@ -106,6 +107,9 @@ export default async function EventPage({
         )
       : event.endTime;
 
+  const safeImageUrl = safeHttpOrHttpsUrl(event.imageUrl);
+  const safeTicketUrl = safeHttpOrHttpsUrl(event.ticketUrl);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -118,10 +122,10 @@ export default async function EventPage({
         </Button>
 
         <div className="space-y-6">
-          {event.imageUrl && (
+          {safeImageUrl && (
             <div className="aspect-video rounded-xl overflow-hidden bg-muted relative">
               <img
-                src={event.imageUrl}
+                src={safeImageUrl}
                 alt={event.title}
                 className="absolute inset-0 w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -228,10 +232,10 @@ export default async function EventPage({
             </CardContent>
           </Card>
 
-          {event.ticketUrl && (
+          {safeTicketUrl && (
             <Button asChild className="w-full h-12">
               <a
-                href={event.ticketUrl}
+                href={safeTicketUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >

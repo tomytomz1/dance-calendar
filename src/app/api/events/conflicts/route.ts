@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkEventConflicts, getConflictMessage } from "@/lib/conflicts";
+import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { z } from "zod";
 
 const conflictCheckSchema = z.object({
@@ -18,6 +19,14 @@ export async function POST(request: Request) {
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const limited = rateLimitOr429(request, {
+      scope: "events:conflicts",
+      userId: session.user.id,
+      limit: 60,
+      windowMs: 60 * 1000,
+    });
+    if (limited) return limited;
 
     const body = await request.json();
     const validatedData = conflictCheckSchema.parse(body);

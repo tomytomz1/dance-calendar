@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent, getUpcomingInstances } from "@/lib/recurrence";
+import { rateLimitOr429 } from "@/lib/api-rate-limit";
 
 export async function GET(
   request: Request,
@@ -72,6 +73,14 @@ export async function POST(
     if (event.organizerId !== session.user.id && session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const postLimited = rateLimitOr429(request, {
+      scope: "events:instances:post",
+      userId: session.user.id,
+      limit: 20,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (postLimited) return postLimited;
 
     if (!event.isRecurring) {
       return NextResponse.json(

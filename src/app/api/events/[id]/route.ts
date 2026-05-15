@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
 import { generateUniqueEventSlug } from "@/lib/slug";
+import { rateLimitOr429 } from "@/lib/api-rate-limit";
+import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
 import { z } from "zod";
 
 const recurrenceSchema = z.object({
@@ -27,8 +29,8 @@ const updateEventSchema = z.object({
   longitude: z.number().optional(),
   startTime: z.string().transform((val) => new Date(val)).optional(),
   endTime: z.string().transform((val) => new Date(val)).optional(),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  ticketUrl: z.string().url().optional().or(z.literal("")),
+  imageUrl: optionalEmptyOrHttpUrl,
+  ticketUrl: optionalEmptyOrHttpUrl,
   price: z.string().optional(),
   status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "CANCELLED"]).optional(),
   recurrence: recurrenceSchema.optional(),
@@ -128,6 +130,14 @@ export async function PATCH(
     if (!isOwner && !isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const patchLimited = rateLimitOr429(request, {
+      scope: "events:patch",
+      userId: session.user.id,
+      limit: 60,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (patchLimited) return patchLimited;
 
     const body = await request.json();
     const validatedData = updateEventSchema.parse(body);
@@ -253,6 +263,14 @@ export async function DELETE(
     if (!isOwner && !isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const deleteLimited = rateLimitOr429(request, {
+      scope: "events:delete",
+      userId: session.user.id,
+      limit: 60,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (deleteLimited) return deleteLimited;
 
     await prisma.event.delete({
       where: { id },

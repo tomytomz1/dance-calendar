@@ -11,6 +11,10 @@ const registerSchema = z.object({
   isOrganizer: z.boolean().optional().default(false),
 });
 
+/** Same style as forgot-password: do not reveal whether the email already exists. */
+const REGISTER_NEUTRAL_MESSAGE =
+  "If an account can be created for this email, you will be able to sign in shortly.";
+
 export async function POST(request: Request) {
   try {
     const ip = getClientIp(request);
@@ -47,10 +51,7 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: REGISTER_NEUTRAL_MESSAGE }, { status: 200 });
     }
 
     const hashedPassword = await hashPassword(validatedData.password);

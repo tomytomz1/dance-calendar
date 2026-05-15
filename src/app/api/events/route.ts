@@ -4,7 +4,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
 import { generateUniqueEventSlug } from "@/lib/slug";
+import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
 import { z } from "zod";
 
 const recurrenceSchema = z.object({
@@ -29,8 +31,8 @@ const eventSchema = z.object({
   longitude: z.number().optional(),
   startTime: z.string().transform((val) => new Date(val)),
   endTime: z.string().transform((val) => new Date(val)),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  ticketUrl: z.string().url().optional().or(z.literal("")),
+  imageUrl: optionalEmptyOrHttpUrl,
+  ticketUrl: optionalEmptyOrHttpUrl,
   price: z.string().optional(),
   isRecurring: z.boolean().optional().default(false),
   recurrence: recurrenceSchema.optional(),
@@ -130,6 +132,14 @@ export async function POST(request: Request) {
         { status: 403 }
       );
     }
+
+    const limited = rateLimitOr429(request, {
+      scope: "events:post",
+      userId: session.user.id,
+      limit: 30,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (limited) return limited;
 
     const body = await request.json();
     const validatedData = eventSchema.parse(body);

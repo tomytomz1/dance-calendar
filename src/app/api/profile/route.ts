@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimitOr429 } from "@/lib/api-rate-limit";
+import { optionalProfileWebsite } from "@/lib/zod-url";
 import { z } from "zod";
 
 const updateProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").optional(),
   bio: z.string().max(500, "Bio must be 500 characters or less").optional().nullable(),
   phone: z.string().max(20).optional().nullable(),
-  website: z.string().url("Must be a valid URL").optional().nullable().or(z.literal("")),
+  website: optionalProfileWebsite,
 });
 
 export async function GET() {
@@ -55,6 +57,14 @@ export async function PATCH(request: Request) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const limited = rateLimitOr429(request, {
+      scope: "profile:patch",
+      userId: session.user.id,
+      limit: 30,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (limited) return limited;
 
     const body = await request.json();
     const validatedData = updateProfileSchema.parse(body);

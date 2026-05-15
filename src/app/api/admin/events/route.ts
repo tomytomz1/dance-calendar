@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { EventStatus } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimitOr429 } from "@/lib/api-rate-limit";
 
 export async function GET(request: Request) {
   try {
@@ -11,6 +12,14 @@ export async function GET(request: Request) {
     if (!session || session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const limited = rateLimitOr429(request, {
+      scope: "admin:events:get",
+      userId: session.user.id,
+      limit: 120,
+      windowMs: 60 * 1000,
+    });
+    if (limited) return limited;
 
     const { searchParams } = new URL(request.url);
     const pageParam = searchParams.get("page");

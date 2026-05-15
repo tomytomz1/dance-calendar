@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { addMonths, startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { Prisma } from "@prisma/client";
 import { Header } from "@/components/layout/header";
 import { EventCalendarWrapper } from "@/components/calendar/event-calendar-wrapper";
 import { CalendarLoadError } from "@/components/calendar/calendar-load-error";
@@ -53,13 +54,28 @@ async function getEvents(): Promise<
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_DB_RETRIES; attempt++) {
     try {
-      const events = await prisma.event.findMany({
-        where: {
-          status: "APPROVED",
-          startTime: {
-            gte: rangeStart,
+      const calendarWhere: Prisma.EventWhereInput = {
+        status: "APPROVED",
+        OR: [
+          {
+            isRecurring: false,
+            startTime: { lte: rangeEnd },
+            endTime: { gte: rangeStart },
           },
-        },
+          {
+            isRecurring: true,
+            startTime: { lte: rangeEnd },
+            OR: [
+              { recurrenceRule: null },
+              { recurrenceRule: { until: null } },
+              { recurrenceRule: { until: { gte: rangeStart } } },
+            ],
+          },
+        ],
+      };
+
+      const events = await prisma.event.findMany({
+        where: calendarWhere,
         include: {
           organizer: {
             select: {
