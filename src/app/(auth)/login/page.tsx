@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,14 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const rawCallback = searchParams.get("callbackUrl") || "/";
+  const callbackUrl =
+    rawCallback.startsWith("/") &&
+    !rawCallback.startsWith("//") &&
+    !rawCallback.includes("\\")
+      ? rawCallback
+      : "/";
   const [isLoading, setIsLoading] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -35,10 +40,13 @@ function LoginForm() {
 
       if (result?.error) {
         toast.error("Invalid email or password");
-      } else {
+      } else if (result?.ok) {
         toast.success("Welcome back!");
-        router.push(callbackUrl);
-        router.refresh();
+        // Full navigation so the session cookie from sign-in is always sent on the
+        // next request (middleware + RSC). client router.push can race cookie commit.
+        window.location.assign(callbackUrl);
+      } else {
+        toast.error("Sign in did not complete. Please try again.");
       }
     } catch {
       toast.error("Something went wrong");

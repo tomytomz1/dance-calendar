@@ -33,6 +33,9 @@ declare module "@auth/core/jwt" {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Required on Vercel / production so cookies and JWT work when the public host
+  // differs from a single hardcoded NEXTAUTH_URL (see Auth.js trustHost).
+  trustHost: true,
   adapter: PrismaAdapter(prisma) as never,
   session: {
     strategy: "jwt",
