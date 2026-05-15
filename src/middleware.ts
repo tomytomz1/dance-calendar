@@ -27,13 +27,31 @@ export async function middleware(request: NextRequest) {
     return res;
   }
 
-  const secret = process.env.NEXTAUTH_SECRET;
+  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
   if (!secret) {
-    console.error("middleware: NEXTAUTH_SECRET is not set");
+    console.error("middleware: NEXTAUTH_SECRET/AUTH_SECRET is not set");
     return res;
   }
 
-  const token = await getToken({ req: request, secret });
+  // Auth.js v5 (next-auth@5 beta) getToken does NOT auto-detect HTTPS;
+  // it defaults to the non-secure cookie name. In production over HTTPS the
+  // session cookie is named `__Secure-authjs.session-token`, so we must
+  // pass `secureCookie`/`cookieName` explicitly or the token is never found.
+  const proto =
+    request.headers.get("x-forwarded-proto") ??
+    request.nextUrl.protocol.replace(":", "");
+  const isSecure = proto === "https";
+  const cookieName = isSecure
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+
+  const token = await getToken({
+    req: request,
+    secret,
+    secureCookie: isSecure,
+    cookieName,
+    salt: cookieName,
+  });
 
   if (!token) {
     const login = new URL("/login", request.url);
