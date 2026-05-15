@@ -47,8 +47,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: verified.email },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: { equals: verified.email, mode: "insensitive" },
+      },
       select: { id: true, password: true },
     });
 
