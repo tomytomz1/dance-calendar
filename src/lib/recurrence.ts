@@ -239,13 +239,17 @@ export async function modifyEventInstance(
 
 export async function getUpcomingInstances(
   eventId: string,
-  limit: number = 10
+  limit: number = 10,
+  options?: { requireApprovedParent?: boolean }
 ) {
   return prisma.eventInstance.findMany({
     where: {
       eventId,
       startTime: { gte: new Date() },
       isCancelled: false,
+      ...(options?.requireApprovedParent
+        ? { Event: { status: "APPROVED" as const } }
+        : {}),
     },
     orderBy: { startTime: "asc" },
     take: limit,

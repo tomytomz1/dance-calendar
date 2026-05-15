@@ -128,11 +128,13 @@ export default function AdminPage() {
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
   const [dancers, setDancers] = useState<Dancer[]>([]);
   const [totalDancers, setTotalDancers] = useState(0);
+  const [totalOrganizers, setTotalOrganizers] = useState(0);
   const [pendingEvents, setPendingEvents] = useState<AdminEvent[]>([]);
   const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [eventsPage, setEventsPage] = useState(1);
-  const [usersPage, setUsersPage] = useState(1);
+  const [organizerPage, setOrganizerPage] = useState(1);
+  const [dancerPage, setDancerPage] = useState(1);
   const [pendingPage, setPendingPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<AdminEvent | null>(null);
   const [deleteOrgTarget, setDeleteOrgTarget] = useState<Organizer | null>(null);
@@ -144,19 +146,20 @@ export default function AdminPage() {
       redirect("/");
     }
 
-    fetchData(eventsPage, usersPage, pendingPage);
-  }, [session, status, eventsPage, usersPage, pendingPage]);
+    fetchData(eventsPage, organizerPage, dancerPage, pendingPage);
+  }, [session, status, eventsPage, organizerPage, dancerPage, pendingPage]);
 
   async function fetchData(
     eventsPageParam: number,
-    usersPageParam: number,
+    organizerPageParam: number,
+    dancerPageParam: number,
     pendingPageParam: number
   ) {
     setIsLoading(true);
     try {
       const [usersRes, pendingRes, allEventsRes] = await Promise.all([
         fetch(
-          `/api/admin/users?limit=${PAGE_SIZE}&page=${usersPageParam}`
+          `/api/admin/users?limit=${PAGE_SIZE}&organizerPage=${organizerPageParam}&dancerPage=${dancerPageParam}`
         ),
         fetch(
           `/api/admin/events/pending?limit=${PAGE_SIZE}&page=${pendingPageParam}`
@@ -169,6 +172,7 @@ export default function AdminPage() {
       if (usersRes.ok) {
         const data = await usersRes.json();
         setOrganizers(data.organizers);
+        setTotalOrganizers(data.totalOrganizers ?? 0);
         setTotalDancers(data.totalDancers ?? 0);
         setDancers(data.dancers ?? []);
       }
@@ -289,6 +293,11 @@ export default function AdminPage() {
   const pendingOrganizers = organizers.filter((o) => !o.verified);
   const verifiedOrganizers = organizers.filter((o) => o.verified);
 
+  const organizerHasNext =
+    (organizerPage - 1) * PAGE_SIZE + organizers.length < totalOrganizers;
+  const dancerHasNext =
+    (dancerPage - 1) * PAGE_SIZE + dancers.length < totalDancers;
+
   return (
     <div className="space-y-6">
       <div>
@@ -306,7 +315,7 @@ export default function AdminPage() {
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{organizers.length}</p>
+                <p className="text-2xl font-bold">{totalOrganizers}</p>
                 <p className="text-sm text-muted-foreground">Total Organizers</p>
               </div>
             </div>
@@ -362,10 +371,10 @@ export default function AdminPage() {
             All Events ({allEvents.length})
           </TabsTrigger>
           <TabsTrigger value="organizers">
-            Organizers ({organizers.length})
+            Organizers ({totalOrganizers})
           </TabsTrigger>
           <TabsTrigger value="dancers">
-            Dancers ({dancers.length})
+            Dancers ({totalDancers})
           </TabsTrigger>
         </TabsList>
 
@@ -608,18 +617,18 @@ export default function AdminPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={usersPage === 1}
-              onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+              disabled={organizerPage === 1}
+              onClick={() => setOrganizerPage((p) => Math.max(1, p - 1))}
             >
               Previous
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={organizers.length < PAGE_SIZE}
+              disabled={!organizerHasNext}
               onClick={() => {
-                if (organizers.length === PAGE_SIZE) {
-                  setUsersPage((p) => p + 1);
+                if (organizerHasNext) {
+                  setOrganizerPage((p) => p + 1);
                 }
               }}
             >
@@ -673,18 +682,18 @@ export default function AdminPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={usersPage === 1}
-              onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+              disabled={dancerPage === 1}
+              onClick={() => setDancerPage((p) => Math.max(1, p - 1))}
             >
               Previous
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={dancers.length < PAGE_SIZE}
+              disabled={!dancerHasNext}
               onClick={() => {
-                if (dancers.length === PAGE_SIZE) {
-                  setUsersPage((p) => p + 1);
+                if (dancerHasNext) {
+                  setDancerPage((p) => p + 1);
                 }
               }}
             >
@@ -715,6 +724,7 @@ export default function AdminPage() {
           onClose={() => setDeleteOrgTarget(null)}
           onDeleted={() => {
             setOrganizers((prev) => prev.filter((o) => o.id !== deleteOrgTarget.id));
+            setTotalOrganizers((prev) => Math.max(0, prev - 1));
             setAllEvents((prev) => prev.filter((e) => e.organizer.id !== deleteOrgTarget.id));
             setDeleteOrgTarget(null);
           }}

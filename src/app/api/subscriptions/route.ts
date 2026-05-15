@@ -12,6 +12,15 @@ const subscriptionSchema = z.object({
   weeklyDigest: z.boolean().optional().default(false),
 });
 
+function subscriptionWhereForUser(userId: string, canonicalEmail: string) {
+  return {
+    OR: [
+      { userId },
+      { email: { equals: canonicalEmail, mode: "insensitive" as const } },
+    ],
+  };
+}
+
 export async function GET(request: Request) {
   try {
     const ip = getClientIp(request);
@@ -38,17 +47,14 @@ export async function GET(request: Request) {
 
     const session = await auth();
 
-    if (!session) {
+    if (!session?.user?.id || !session.user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const canonicalEmail = session.user.email.toLowerCase().trim();
+
     const subscription = await prisma.subscription.findFirst({
-      where: {
-        OR: [
-          { userId: session.user.id },
-          { email: session.user.email },
-        ],
-      },
+      where: subscriptionWhereForUser(session.user.id, canonicalEmail),
     });
 
     return NextResponse.json(subscription);
@@ -86,29 +92,43 @@ export async function POST(request: Request) {
     }
 
     const session = await auth();
+
+    if (!session?.user?.id || !session.user.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const canonicalEmail = session.user.email.toLowerCase().trim();
     const body = await request.json();
     const validatedData = subscriptionSchema.parse(body);
 
-    const subscription = await prisma.subscription.upsert({
-      where: { email: validatedData.email },
-      update: {
-        danceStyles: validatedData.danceStyles,
-        cities: validatedData.cities,
-        emailNotifications: validatedData.emailNotifications,
-        weeklyDigest: validatedData.weeklyDigest,
-        userId: session?.user.id,
-      },
-      create: {
-        email: validatedData.email,
-        danceStyles: validatedData.danceStyles,
-        cities: validatedData.cities,
-        emailNotifications: validatedData.emailNotifications,
-        weeklyDigest: validatedData.weeklyDigest,
-        userId: session?.user.id,
-      },
+    if (validatedData.email.toLowerCase().trim() !== canonicalEmail) {
+      return NextResponse.json(
+        { error: "Email must match your signed-in account." },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.subscription.findFirst({
+      where: subscriptionWhereForUser(session.user.id, canonicalEmail),
     });
 
-    return NextResponse.json(subscription, { status: 201 });
+    const data = {
+      danceStyles: validatedData.danceStyles,
+      cities: validatedData.cities,
+      emailNotifications: validatedData.emailNotifications,
+      weeklyDigest: validatedData.weeklyDigest,
+      userId: session.user.id,
+      email: canonicalEmail,
+    };
+
+    const subscription = existing
+      ? await prisma.subscription.update({
+          where: { id: existing.id },
+          data,
+        })
+      : await prisma.subscription.create({ data });
+
+    return NextResponse.json(subscription, { status: existing ? 200 : 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -129,19 +149,16 @@ export async function DELETE(request: Request) {
   try {
     const session = await auth();
 
-    if (!session) {
+    if (!session?.user?.id || !session.user.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const canonicalEmail = session.user.email.toLowerCase().trim();
 
     // Only allow unsubscribing the authenticated user's own subscription.
     // We don't surface whether a subscription existed to avoid leaking info.
     await prisma.subscription.deleteMany({
-      where: {
-        OR: [
-          { userId: session.user.id },
-          { email: session.user.email },
-        ],
-      },
+      where: subscriptionWhereForUser(session.user.id, canonicalEmail),
     });
 
     return NextResponse.json({ message: "Unsubscribed successfully" });

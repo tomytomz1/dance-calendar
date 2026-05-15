@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { EventDateTimeDisplay } from "@/components/events/event-datetime-display";
 import { Header } from "@/components/layout/header";
@@ -29,7 +28,8 @@ export async function generateMetadata({ params }: EventPageProps) {
     { id: string; title: string; description: string | null; venue: string }[]
   >`SELECT "id", "title", "description", "venue"
     FROM "Event"
-    WHERE "id" = ${idOrSlug} OR "slug" = ${idOrSlug}
+    WHERE ("id" = ${idOrSlug} OR "slug" = ${idOrSlug})
+      AND "status" = 'APPROVED'
     LIMIT 1`;
 
   const event = rows[0];
@@ -54,7 +54,8 @@ export default async function EventPage({
   const idRows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT "id"
     FROM "Event"
-    WHERE "id" = ${idOrSlug} OR "slug" = ${idOrSlug}
+    WHERE ("id" = ${idOrSlug} OR "slug" = ${idOrSlug})
+      AND "status" = 'APPROVED'
     LIMIT 1
   `;
 
@@ -81,6 +82,10 @@ export default async function EventPage({
   });
 
   if (!event) {
+    notFound();
+  }
+
+  if (event.status !== "APPROVED") {
     notFound();
   }
 
@@ -115,12 +120,11 @@ export default async function EventPage({
         <div className="space-y-6">
           {event.imageUrl && (
             <div className="aspect-video rounded-xl overflow-hidden bg-muted relative">
-              <Image
+              <img
                 src={event.imageUrl}
                 alt={event.title}
-                fill
-                className="object-cover"
-                unoptimized
+                className="absolute inset-0 w-full h-full object-cover"
+                referrerPolicy="no-referrer"
               />
             </div>
           )}

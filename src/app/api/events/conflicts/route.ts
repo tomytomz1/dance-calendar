@@ -6,7 +6,7 @@ import { z } from "zod";
 const conflictCheckSchema = z.object({
   startTime: z.string().transform((val) => new Date(val)),
   endTime: z.string().transform((val) => new Date(val)),
-  city: z.string().optional(),
+  city: z.string().min(1, "City is required"),
   venue: z.string().optional(),
   excludeEventId: z.string().optional(),
 });
@@ -25,14 +25,14 @@ export async function POST(request: Request) {
     const result = await checkEventConflicts(
       validatedData.startTime,
       validatedData.endTime,
-      validatedData.city || undefined,
+      validatedData.city.trim(),
       validatedData.venue,
       validatedData.excludeEventId
     );
 
     return NextResponse.json({
       ...result,
-      message: getConflictMessage(result, !!validatedData.city?.trim()),
+      message: getConflictMessage(result, true),
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

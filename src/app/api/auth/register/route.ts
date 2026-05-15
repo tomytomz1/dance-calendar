@@ -38,9 +38,12 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const validatedData = registerSchema.parse(body);
+    const emailNormalized = validatedData.email.toLowerCase().trim();
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email: validatedData.email },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: { equals: emailNormalized, mode: "insensitive" },
+      },
     });
 
     if (existingUser) {
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.create({
       data: {
-        email: validatedData.email,
+        email: emailNormalized,
         password: hashedPassword,
         name: validatedData.name,
         role: validatedData.isOrganizer ? "ORGANIZER" : "USER",

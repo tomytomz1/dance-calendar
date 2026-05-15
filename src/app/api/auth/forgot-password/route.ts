@@ -6,6 +6,7 @@ import {
   storePasswordResetToken,
 } from "@/lib/password-reset";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getPublicAppUrl } from "@/lib/app-url";
 import { z } from "zod";
 
 const forgotPasswordSchema = z.object({
@@ -60,22 +61,25 @@ export async function POST(request: Request) {
     });
 
     if (user?.password) {
-      const token = createPasswordResetToken();
-      await storePasswordResetToken(user.email, token);
+      try {
+        const baseUrl = getPublicAppUrl();
+        const token = createPasswordResetToken();
+        await storePasswordResetToken(user.email, token);
 
-      const baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "";
-      const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
-      const { subject, html } = generatePasswordResetEmail(user.name, resetUrl);
+        const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+        const { subject, html } = generatePasswordResetEmail(user.name, resetUrl);
 
-      const result = await sendEmail({
-        to: user.email,
-        subject,
-        html,
-      });
+        const result = await sendEmail({
+          to: user.email,
+          subject,
+          html,
+        });
 
-      if (!result.success) {
-        console.error("Password reset email failed:", result.error);
+        if (!result.success) {
+          console.error("Password reset email failed:", result.error);
+        }
+      } catch (err) {
+        console.error("Password reset: missing app URL or send failed:", err);
       }
     }
 

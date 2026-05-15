@@ -20,8 +20,11 @@ export async function sendEmail(options: EmailOptions) {
   const resend = getResend();
   
   if (!resend) {
-    console.log("Email would be sent:", options);
-    return { success: true, messageId: "dev-mode" };
+    console.warn("Email not sent (RESEND_API_KEY is not set):", options.subject);
+    return {
+      success: false,
+      error: new Error("Email is not configured (RESEND_API_KEY)"),
+    };
   }
 
   try {
@@ -104,7 +107,8 @@ export function generateNewEventEmail(
   venue: string,
   city: string,
   danceStyles: string[],
-  eventUrl: string
+  eventUrl: string,
+  appBaseUrl: string
 ) {
   const subject = `New Dance Event: ${eventTitle}`;
 
@@ -139,7 +143,7 @@ export function generateNewEventEmail(
         
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">
           <p>You're receiving this because you subscribed to dance event notifications.</p>
-          <p><a href="${process.env.NEXT_PUBLIC_APP_URL}/unsubscribe" style="color: #8b5cf6;">Unsubscribe</a></p>
+          <p><a href="${appBaseUrl}/unsubscribe" style="color: #8b5cf6;">Unsubscribe</a></p>
         </div>
       </body>
     </html>

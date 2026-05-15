@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 export async function GET() {
   const headersList = await headers();
-  const authHeader = headersList.get("authorization");
-
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const cron = verifyCronRequest(headersList.get("authorization"));
+  if (!cron.ok) {
+    return NextResponse.json(cron.body ?? { error: "Unauthorized" }, {
+      status: cron.status,
+    });
   }
 
   try {

@@ -47,7 +47,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           Google({
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            allowDangerousEmailAccountLinking: true,
+            allowDangerousEmailAccountLinking: false,
           }),
         ]
       : []),
@@ -62,8 +62,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+        const email = (credentials.email as string).trim();
+        const user = await prisma.user.findFirst({
+          where: {
+            email: { equals: email, mode: "insensitive" },
+            password: { not: null },
+          },
         });
 
         if (!user || !user.password) {

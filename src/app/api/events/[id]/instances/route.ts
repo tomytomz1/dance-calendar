@@ -10,9 +10,33 @@ export async function GET(
   try {
     const { id } = await params;
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "10");
+    const rawLimit = Number.parseInt(searchParams.get("limit") || "10", 10);
+    const take = Number.isFinite(rawLimit)
+      ? Math.min(Math.max(rawLimit, 1), 100)
+      : 10;
 
-    const instances = await getUpcomingInstances(id, limit);
+    const session = await auth();
+    const parent = await prisma.event.findUnique({
+      where: { id },
+      select: { organizerId: true, status: true },
+    });
+
+    if (!parent) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const isOwner = session?.user?.id === parent.organizerId;
+    const isAdmin = session?.user?.role === "ADMIN";
+
+    if (!isOwner && !isAdmin && parent.status !== "APPROVED") {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const requireApprovedParent = !isOwner && !isAdmin;
+
+    const instances = await getUpcomingInstances(id, take, {
+      requireApprovedParent,
+    });
 
     return NextResponse.json(instances);
   } catch (error) {

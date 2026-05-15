@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
@@ -65,24 +66,21 @@ export async function GET(request: Request) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    const where: Record<string, unknown> = {
+    const where: Prisma.EventWhereInput = {
       status: "APPROVED",
+      ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
+      ...(style ? { danceStyles: { has: style } } : {}),
     };
 
-    if (city) {
-      where.city = { contains: city, mode: "insensitive" };
-    }
-
-    if (style) {
-      where.danceStyles = { has: style };
-    }
-
-    if (from) {
+    if (from && to) {
+      where.AND = [
+        { startTime: { lte: new Date(to) } },
+        { endTime: { gte: new Date(from) } },
+      ];
+    } else if (from) {
       where.startTime = { gte: new Date(from) };
-    }
-
-    if (to) {
-      where.endTime = { ...((where.endTime as object) || {}), lte: new Date(to) };
+    } else if (to) {
+      where.endTime = { lte: new Date(to) };
     }
 
     const events = await prisma.event.findMany({

@@ -46,7 +46,7 @@ export function ConflictWarning({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const checkConflicts = useCallback(async () => {
-    if (!startTime || !endTime) {
+    if (!startTime || !endTime || !city?.trim()) {
       setResult(null);
       return;
     }

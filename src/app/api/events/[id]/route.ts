@@ -40,6 +40,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const session = await auth();
 
     const event = await prisma.event.findUnique({
       where: { id },
@@ -68,7 +69,29 @@ export async function GET(
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    return NextResponse.json(event);
+    const isOwner = session?.user?.id === event.organizerId;
+    const isAdmin = session?.user?.role === "ADMIN";
+
+    if (isOwner || isAdmin) {
+      return NextResponse.json(event);
+    }
+
+    if (event.status !== "APPROVED") {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const { organizer, ...rest } = event;
+    const publicPayload = {
+      ...rest,
+      organizer: {
+        id: organizer.id,
+        name: organizer.name,
+        image: organizer.image,
+        bio: organizer.bio,
+      },
+    };
+
+    return NextResponse.json(publicPayload);
   } catch (error) {
     console.error("Error fetching event:", error);
     return NextResponse.json(

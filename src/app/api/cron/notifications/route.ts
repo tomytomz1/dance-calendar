@@ -3,13 +3,26 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { sendEmail, generateNewEventEmail, generateEventReminderEmail } from "@/lib/email";
 import { format, addDays, startOfDay, endOfDay } from "date-fns";
+import { getPublicAppUrl } from "@/lib/app-url";
+import { verifyCronRequest } from "@/lib/cron-auth";
 
 export async function GET(request: Request) {
   const headersList = await headers();
-  const authHeader = headersList.get("authorization");
+  const cron = verifyCronRequest(headersList.get("authorization"));
+  if (!cron.ok) {
+    return NextResponse.json(cron.body ?? { error: "Unauthorized" }, {
+      status: cron.status,
+    });
+  }
 
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let appBaseUrl: string;
+  try {
+    appBaseUrl = getPublicAppUrl();
+  } catch {
+    return NextResponse.json(
+      { error: "NEXT_PUBLIC_APP_URL or NEXTAUTH_URL must be set for cron emails" },
+      { status: 503 }
+    );
   }
 
   try {
@@ -17,9 +30,9 @@ export async function GET(request: Request) {
     const type = searchParams.get("type") || "new-events";
 
     if (type === "new-events") {
-      return await sendNewEventNotifications();
+      return await sendNewEventNotifications(appBaseUrl);
     } else if (type === "reminders") {
-      return await sendEventReminders();
+      return await sendEventReminders(appBaseUrl);
     }
 
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
@@ -32,7 +45,7 @@ export async function GET(request: Request) {
   }
 }
 
-async function sendNewEventNotifications() {
+async function sendNewEventNotifications(appBaseUrl: string) {
   const yesterday = addDays(new Date(), -1);
 
   const newEvents = await prisma.event.findMany({
@@ -76,7 +89,8 @@ async function sendNewEventNotifications() {
         event.venue,
         event.city,
         event.danceStyles,
-        `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.slug ?? event.id}`
+        `${appBaseUrl}/event/${event.slug ?? event.id}`,
+        appBaseUrl
       );
 
       const result = await sendEmail({
@@ -105,7 +119,7 @@ async function sendNewEventNotifications() {
   });
 }
 
-async function sendEventReminders() {
+async function sendEventReminders(appBaseUrl: string) {
   const tomorrow = addDays(new Date(), 1);
   const tomorrowStart = startOfDay(tomorrow);
   const tomorrowEnd = endOfDay(tomorrow);
@@ -160,7 +174,7 @@ async function sendEventReminders() {
         format(event.startTime, "h:mm a"),
         event.venue,
         event.address,
-        `${process.env.NEXT_PUBLIC_APP_URL}/event/${event.slug ?? event.id}`
+        `${appBaseUrl}/event/${event.slug ?? event.id}`
       );
 
       const result = await sendEmail({
