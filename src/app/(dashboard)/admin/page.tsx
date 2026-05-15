@@ -363,12 +363,18 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="pending" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="flex w-full overflow-x-auto justify-start sm:grid sm:grid-cols-4">
           <TabsTrigger value="pending">
-            Pending Events ({pendingEvents.length})
+            <span className="sm:hidden">Pending ({pendingEvents.length})</span>
+            <span className="hidden sm:inline">
+              Pending Events ({pendingEvents.length})
+            </span>
           </TabsTrigger>
           <TabsTrigger value="all-events">
-            All Events ({allEvents.length})
+            <span className="sm:hidden">Events ({allEvents.length})</span>
+            <span className="hidden sm:inline">
+              All Events ({allEvents.length})
+            </span>
           </TabsTrigger>
           <TabsTrigger value="organizers">
             Organizers ({totalOrganizers})

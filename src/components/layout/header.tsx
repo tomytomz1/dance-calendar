@@ -51,8 +51,8 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center justify-between w-full px-2 py-2 sm:px-2">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between gap-2 w-full px-2 py-2 sm:px-4 min-w-0">
+        <div className="flex items-center gap-1 min-w-0 flex-shrink">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
@@ -112,18 +112,22 @@ export function Header() {
               alt="MichiganDance.Life dance events calendar logo"
               width={400}
               height={93}
-              className="h-14 w-auto sm:h-16"
+              className="h-9 w-auto sm:h-12 md:h-16 max-w-[60vw]"
               priority
             />
           </Link>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {canCreateEvents && isVerified && (
             <Button asChild size="sm" className="flex">
-              <Link href="/organizer/events/new" className="flex items-center gap-1">
-                <Plus className="h-4 w-4 mr-1" />
-                Add Event
+              <Link
+                href="/organizer/events/new"
+                className="flex items-center gap-1"
+                aria-label="Add Event"
+              >
+                <Plus className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Add Event</span>
               </Link>
             </Button>
           )}
