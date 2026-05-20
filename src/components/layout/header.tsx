@@ -13,8 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Menu, Plus, LogOut, User, Settings, Calendar, LayoutDashboard } from "lucide-react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Plus, LogOut, User, Settings, Calendar, LayoutDashboard } from "lucide-react";
+import { HeaderMobileNav } from "@/components/layout/header-mobile-nav";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -53,56 +53,49 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center justify-between gap-2 w-full px-2 py-2 sm:px-4 min-w-0">
         <div className="flex items-center gap-1 min-w-0 flex-shrink">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72">
-              <nav className="flex flex-col gap-4 mt-8">
+          <HeaderMobileNav>
+            <nav className="flex flex-col gap-4 mt-8">
+              <Link
+                href="/events"
+                className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
+              >
+                <Calendar className="h-5 w-5" />
+                Events
+              </Link>
+              {canCreateEvents && (
                 <Link
-                  href="/events"
+                  href="/organizer/events"
                   className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
                 >
-                  <Calendar className="h-5 w-5" />
-                  Events
+                  <Settings className="h-5 w-5" />
+                  My Events
                 </Link>
-                {canCreateEvents && (
-                  <Link
-                    href="/organizer/events"
-                    className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
-                  >
-                    <Settings className="h-5 w-5" />
-                    My Events
-                  </Link>
-                )}
-                {session && (
-                  <Link
-                    href="/profile"
-                    className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
-                  >
-                    <User className="h-5 w-5" />
-                    Profile
-                  </Link>
-                )}
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
-                  >
-                    <LayoutDashboard className="h-5 w-5" />
-                    Admin Dashboard
-                    {pendingCount > 0 && (
-                      <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
-                        {pendingCount}
-                      </span>
-                    )}
-                  </Link>
-                )}
-              </nav>
-            </SheetContent>
-          </Sheet>
+              )}
+              {session && (
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
+                >
+                  <User className="h-5 w-5" />
+                  Profile
+                </Link>
+              )}
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
+                >
+                  <LayoutDashboard className="h-5 w-5" />
+                  Admin Dashboard
+                  {pendingCount > 0 && (
+                    <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold">
+                      {pendingCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+            </nav>
+          </HeaderMobileNav>
 
           <Link
             href="/"

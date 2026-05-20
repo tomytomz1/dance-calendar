@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
+import { linkSubscriptionToUser } from "@/lib/subscription-link";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
 
@@ -64,6 +65,12 @@ export async function POST(request: Request) {
         role: validatedData.isOrganizer ? "ORGANIZER" : "USER",
         verified: !validatedData.isOrganizer,
       },
+    });
+
+    await linkSubscriptionToUser({
+      userId: user.id,
+      email: emailNormalized,
+      name: validatedData.name,
     });
 
     return NextResponse.json(

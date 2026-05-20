@@ -116,6 +116,7 @@ model Session {
 model Subscription {
   id                 String   @id @default(cuid())
   email              String   @unique
+  name               String?
   danceStyles        String[]
   cities             String[]
   emailNotifications Boolean  @default(true)

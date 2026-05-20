@@ -1,7 +1,9 @@
+import { cache } from "react";
 import { slugify } from "@/lib/slug";
 import { safeHttpOrHttpsUrl } from "@/lib/safe-external-url";
 import { prisma } from "@/lib/prisma";
 import { generateRecurrenceInstances } from "@/lib/recurrence";
+import { tryDb, withDbRetry } from "@/lib/with-db-retry";
 
 export const SITE_NAME = "MichiganDance.Life";
 
@@ -30,6 +32,8 @@ export type SeoEventRecord = {
   status: string;
   updatedAt: Date;
   organizer: { name: string | null };
+  /** Unique key when this row is one occurrence of a recurring event */
+  instanceKey?: string;
 };
 
 export function absoluteUrl(path: string): string {
@@ -257,12 +261,11 @@ function withNextOccurrence(
   };
 }
 
-export async function getUpcomingApprovedEvents(options?: {
+async function queryUpcomingApprovedEvents(options?: {
   limit?: number;
   citySlugParam?: string;
   styleSlugParam?: string;
 }): Promise<SeoEventRecord[]> {
-  try {
   const limit = options?.limit ?? 500;
   const now = new Date();
 
@@ -301,65 +304,109 @@ export async function getUpcomingApprovedEvents(options?: {
     .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
   return withNext.slice(0, limit);
-  } catch (error) {
-    console.error("getUpcomingApprovedEvents:", error);
-    return [];
-  }
 }
 
-export async function getDistinctCities(): Promise<string[]> {
-  try {
-  const rows = await prisma.event.findMany({
-    where: { status: "APPROVED" },
-    select: { city: true },
-    distinct: ["city"],
-    orderBy: { city: "asc" },
-  });
-  return rows.map((r) => r.city).filter(Boolean);
-  } catch (error) {
-    console.error("getDistinctCities:", error);
-    return [];
-  }
-}
-
-export async function getDistinctDanceStyles(): Promise<string[]> {
-  try {
-  const rows = await prisma.event.findMany({
-    where: { status: "APPROVED" },
-    select: { danceStyles: true },
-  });
+export function deriveCitiesFromEvents(
+  events: Pick<SeoEventRecord, "city">[]
+): string[] {
   const set = new Set<string>();
-  for (const row of rows) {
-    for (const style of row.danceStyles) {
+  for (const e of events) {
+    if (e.city?.trim()) set.add(e.city.trim());
+  }
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+export function deriveDanceStylesFromEvents(
+  events: Pick<SeoEventRecord, "danceStyles">[]
+): string[] {
+  const set = new Set<string>();
+  for (const e of events) {
+    for (const style of e.danceStyles) {
       if (style?.trim()) set.add(style.trim());
     }
   }
   return [...set].sort((a, b) => a.localeCompare(b));
-  } catch (error) {
-    console.error("getDistinctDanceStyles:", error);
-    return [];
-  }
 }
 
-export async function getApprovedEventsForSitemap(): Promise<
-  Pick<SeoEventRecord, "id" | "slug" | "updatedAt" | "city" | "danceStyles">[]
-> {
-  try {
-  return prisma.event.findMany({
-    where: { status: "APPROVED" },
-    select: {
-      id: true,
-      slug: true,
-      updatedAt: true,
-      city: true,
-      danceStyles: true,
-    },
+export const getUpcomingApprovedEvents = cache(
+  async (options?: {
+    limit?: number;
+    citySlugParam?: string;
+    styleSlugParam?: string;
+  }): Promise<SeoEventRecord[]> =>
+    withDbRetry(
+      "getUpcomingApprovedEvents",
+      () => queryUpcomingApprovedEvents(options),
+      []
+    )
+);
+
+/** One DB round-trip for /events index (avoids parallel Prisma calls when Neon is down). */
+export async function getEventsIndexPageData(limit = 200): Promise<{
+  events: SeoEventRecord[];
+  cities: string[];
+  styles: string[];
+}> {
+  const result = await tryDb("getEventsIndexPageData", async () => {
+    const events = await queryUpcomingApprovedEvents({ limit });
+    return {
+      events,
+      cities: deriveCitiesFromEvents(events),
+      styles: deriveDanceStylesFromEvents(events),
+    };
   });
-  } catch (error) {
-    console.error("getApprovedEventsForSitemap:", error);
-    return [];
+
+  if (!result.ok) {
+    return { events: [], cities: [], styles: [] };
   }
+
+  return result.data;
 }
+
+export const getDistinctCities = cache(async (): Promise<string[]> =>
+  withDbRetry("getDistinctCities", async () => {
+    const rows = await prisma.event.findMany({
+      where: { status: "APPROVED" },
+      select: { city: true },
+      distinct: ["city"],
+      orderBy: { city: "asc" },
+    });
+    return rows.map((r) => r.city).filter(Boolean);
+  }, [])
+);
+
+export const getDistinctDanceStyles = cache(async (): Promise<string[]> =>
+  withDbRetry("getDistinctDanceStyles", async () => {
+    const rows = await prisma.event.findMany({
+      where: { status: "APPROVED" },
+      select: { danceStyles: true },
+    });
+    const set = new Set<string>();
+    for (const row of rows) {
+      for (const style of row.danceStyles) {
+        if (style?.trim()) set.add(style.trim());
+      }
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [])
+);
+
+export const getApprovedEventsForSitemap = cache(async (): Promise<
+  Pick<SeoEventRecord, "id" | "slug" | "updatedAt" | "city" | "danceStyles">[]
+> =>
+  withDbRetry("getApprovedEventsForSitemap", () =>
+    prisma.event.findMany({
+      where: { status: "APPROVED" },
+      select: {
+        id: true,
+        slug: true,
+        updatedAt: true,
+        city: true,
+        danceStyles: true,
+      },
+    })
+  , [])
+);
 
 export function findCityBySlug(
   cities: string[],

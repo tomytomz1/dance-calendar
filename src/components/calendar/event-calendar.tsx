@@ -62,7 +62,7 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
   );
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col bg-background md:h-full">
       <CalendarHeader
         currentDate={currentDate}
         view={view}
@@ -73,8 +73,8 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
       />
 
       {view === "week" ? (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="hidden md:block flex-1 min-h-0">
+        <>
+          <div className="hidden md:flex flex-1 flex-col min-h-0 overflow-hidden">
             <WeekView
               currentDate={currentDate}
               events={events}
@@ -84,7 +84,7 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
               onSwipe={handleSwipe}
             />
           </div>
-          <div className="md:hidden flex-1 flex flex-col min-h-0">
+          <div className="md:hidden w-full max-w-full overflow-x-hidden">
             <MobileWeekView
               currentDate={currentDate}
               events={events}
@@ -94,10 +94,10 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
               onSwipe={handleSwipe}
             />
           </div>
-        </div>
+        </>
       ) : (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="hidden md:block flex-1 min-h-0">
+        <>
+          <div className="hidden md:flex flex-1 flex-col min-h-0 overflow-hidden">
             <MonthView
               currentDate={currentDate}
               events={events}
@@ -107,7 +107,7 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
               onSwipe={handleSwipe}
             />
           </div>
-          <div className="md:hidden flex-1 flex flex-col min-h-0">
+          <div className="md:hidden w-full max-w-full overflow-x-hidden">
             <MobileMonthView
               currentDate={currentDate}
               events={events}
@@ -117,7 +117,7 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
               onSwipe={handleSwipe}
             />
           </div>
-        </div>
+        </>
       )}
 
       <EventDetailSheet

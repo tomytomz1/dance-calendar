@@ -21,7 +21,7 @@ export default function PrivacyPage() {
       <ul>
         <li>Account data: name, email, password (hashed), profile details</li>
         <li>Event data submitted by organizers</li>
-        <li>Subscription preferences (email, cities, dance styles)</li>
+        <li>Subscription preferences (name, email, and optional cities or dance styles)</li>
         <li>Usage data via analytics when enabled (see below)</li>
       </ul>
       <h2>How we use data</h2>

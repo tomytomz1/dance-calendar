@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { linkSubscriptionToUser } from "@/lib/subscription-link";
 import { z } from "zod";
 
 const publicSubscribeSchema = z.object({
   email: z.string().email(),
-  cities: z.array(z.string()).max(20).optional().default([]),
-  danceStyles: z.array(z.string()).max(20).optional().default([]),
+  name: z.string().min(1, "Name is required").max(120),
 });
 
 export async function POST(request: Request) {
@@ -28,6 +28,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = publicSubscribeSchema.parse(body);
     const email = data.email.toLowerCase().trim();
+    const name = data.name.trim();
+
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true },
+    });
 
     const existing = await prisma.subscription.findUnique({
       where: { email },
@@ -37,20 +43,30 @@ export async function POST(request: Request) {
       await prisma.subscription.update({
         where: { email },
         data: {
-          cities: data.cities,
-          danceStyles: data.danceStyles,
+          name,
           emailNotifications: true,
+          ...(existingUser ? { userId: existingUser.id } : {}),
         },
       });
     } else {
       await prisma.subscription.create({
         data: {
           email,
-          cities: data.cities,
-          danceStyles: data.danceStyles,
+          name,
+          cities: [],
+          danceStyles: [],
           emailNotifications: true,
           weeklyDigest: false,
+          ...(existingUser ? { userId: existingUser.id } : {}),
         },
+      });
+    }
+
+    if (existingUser) {
+      await linkSubscriptionToUser({
+        userId: existingUser.id,
+        email,
+        name,
       });
     }
 

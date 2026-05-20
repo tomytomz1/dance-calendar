@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 import {
   SITE_URL,
   getApprovedEventsForSitemap,
-  getDistinctCities,
-  getDistinctDanceStyles,
+  deriveCitiesFromEvents,
+  deriveDanceStylesFromEvents,
   getEventPath,
   citySlug,
   styleSlug,
@@ -15,19 +15,9 @@ const MAX_URLS = 50_000;
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let events: Awaited<ReturnType<typeof getApprovedEventsForSitemap>> = [];
-  let cities: string[] = [];
-  let styles: string[] = [];
-
-  try {
-    [events, cities, styles] = await Promise.all([
-      getApprovedEventsForSitemap(),
-      getDistinctCities(),
-      getDistinctDanceStyles(),
-    ]);
-  } catch (error) {
-    console.error("sitemap: database unavailable, emitting core URLs only", error);
-  }
+  const events = await getApprovedEventsForSitemap();
+  const cities = deriveCitiesFromEvents(events);
+  const styles = deriveDanceStylesFromEvents(events);
 
   const now = new Date();
   const entries: MetadataRoute.Sitemap = [

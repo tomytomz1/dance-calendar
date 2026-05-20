@@ -17,6 +17,7 @@
 |------|-----|------|
 | 2026-05-20 | P1-04–P1-16, P2-01–P2-10, P3-01–P3-06, P3-12, D-02 | Code implementation batch (see commit) |
 | 2026-05-20 | P1-01–P1-03 | Verified: apex Production, www→apex redirect, `NEXT_PUBLIC_SITE_URL` in Vercel, GSC `/sitemap.xml` Success (60 pages) |
+| 2026-05-20 | D-01, D-02, D-03 (partial) | Homepage mobile-first refresh: display font, unified hero, style-colored chips, shared event rows across devices |
 
 ---
 
@@ -114,9 +115,9 @@
 
 ## Design backlog
 
-- [ ] **D-01** Display font for headings
-- [x] **D-02** Calendar/list toggle (home)
-- [ ] **D-03** A11y pass (admin tabs, filters)
+- [x] **D-01** Display font for headings ([`src/app/layout.tsx`](../src/app/layout.tsx), [`src/components/home/home-hero.tsx`](../src/components/home/home-hero.tsx))
+- [x] **D-02** Calendar/list toggle (home) — List default + localStorage ([`src/components/home/home-view-tabs.tsx`](../src/components/home/home-view-tabs.tsx))
+- [ ] **D-03** A11y pass (admin tabs, filters) — home/calendar touch targets + focus done; admin pending
 - [ ] **D-04** Event form geocoding
 
 ---

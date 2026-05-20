@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, Clock, Calendar, Music } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface AdminStatsProps {
   totalOrganizers: number;
@@ -8,66 +9,75 @@ interface AdminStatsProps {
   totalDancers: number;
 }
 
-export function AdminStats({
-  totalOrganizers,
-  pendingOrganizersCount,
-  pendingEventsCount,
-  totalDancers,
-}: AdminStatsProps) {
+const statItems = [
+  {
+    key: "organizers",
+    label: "Organizers",
+    mobileLabel: "Orgs",
+    icon: Users,
+    iconClass: "text-primary",
+    bgClass: "bg-primary/10",
+    getValue: (p: AdminStatsProps) => p.totalOrganizers,
+  },
+  {
+    key: "pending-orgs",
+    label: "Pending orgs",
+    mobileLabel: "Pend org",
+    icon: Clock,
+    iconClass: "text-amber-500",
+    bgClass: "bg-amber-500/10",
+    getValue: (p: AdminStatsProps) => p.pendingOrganizersCount,
+  },
+  {
+    key: "pending-events",
+    label: "Pending events",
+    mobileLabel: "Pend evt",
+    icon: Calendar,
+    iconClass: "text-orange-500",
+    bgClass: "bg-orange-500/10",
+    getValue: (p: AdminStatsProps) => p.pendingEventsCount,
+  },
+  {
+    key: "dancers",
+    label: "Dancers",
+    mobileLabel: "Dancers",
+    icon: Music,
+    iconClass: "text-green-500",
+    bgClass: "bg-green-500/10",
+    getValue: (p: AdminStatsProps) => p.totalDancers,
+  },
+] as const;
+
+export function AdminStats(props: AdminStatsProps) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-full bg-primary/10">
-              <Users className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalOrganizers}</p>
-              <p className="text-sm text-muted-foreground">Total Organizers</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-full bg-amber-500/10">
-              <Clock className="h-6 w-6 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{pendingOrganizersCount}</p>
-              <p className="text-sm text-muted-foreground">Pending Organizers</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-full bg-orange-500/10">
-              <Calendar className="h-6 w-6 text-orange-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{pendingEventsCount}</p>
-              <p className="text-sm text-muted-foreground">Pending Events</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-full bg-green-500/10">
-              <Music className="h-6 w-6 text-green-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalDancers}</p>
-              <p className="text-sm text-muted-foreground">Total Dancers</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-4 gap-2 sm:grid-cols-4 sm:gap-4">
+      {statItems.map((item) => {
+        const Icon = item.icon;
+        const value = item.getValue(props);
+        return (
+          <Card key={item.key} className="py-0 shadow-none sm:shadow-sm">
+            <CardContent className="flex flex-col items-center gap-1 p-2.5 text-center sm:flex-row sm:items-center sm:gap-4 sm:p-6 sm:text-left">
+              <div
+                className={cn(
+                  "rounded-full p-2 sm:p-3",
+                  item.bgClass
+                )}
+              >
+                <Icon className={cn("h-4 w-4 sm:h-6 sm:w-6", item.iconClass)} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-lg font-bold tabular-nums leading-none sm:text-2xl">
+                  {value}
+                </p>
+                <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground sm:mt-0 sm:text-sm">
+                  <span className="sm:hidden">{item.mobileLabel}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

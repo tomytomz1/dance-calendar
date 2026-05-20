@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
+import { linkSubscriptionToUser } from "@/lib/subscription-link";
 
 const subscriptionSchema = z.object({
   email: z.string().email(),
@@ -121,14 +122,28 @@ export async function POST(request: Request) {
       email: canonicalEmail,
     };
 
-    const subscription = existing
-      ? await prisma.subscription.update({
-          where: { id: existing.id },
-          data,
-        })
-      : await prisma.subscription.create({ data });
+    if (existing) {
+      await prisma.subscription.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      await prisma.subscription.create({ data });
+    }
 
-    return NextResponse.json(subscription, { status: existing ? 200 : 201 });
+    await linkSubscriptionToUser({
+      userId: session.user.id,
+      email: canonicalEmail,
+      name: session.user.name,
+    });
+
+    const subscription = await prisma.subscription.findFirst({
+      where: subscriptionWhereForUser(session.user.id, canonicalEmail),
+    });
+
+    return NextResponse.json(subscription, {
+      status: existing ? 200 : 201,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

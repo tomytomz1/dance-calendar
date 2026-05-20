@@ -5,6 +5,7 @@ import { sendEmail, generateNewEventEmail, generateEventReminderEmail } from "@/
 import { format, addDays, startOfDay, endOfDay } from "date-fns";
 import { getPublicAppUrl } from "@/lib/app-url";
 import { verifyCronRequest } from "@/lib/cron-auth";
+import { dedupeSubscribersByEmail } from "@/lib/subscription-link";
 
 export async function GET(request: Request) {
   const headersList = await headers();
@@ -69,19 +70,31 @@ async function sendNewEventNotifications(appBaseUrl: string) {
   let sentCount = 0;
 
   for (const event of newEvents) {
-    const matchingSubscribers = subscriptions.filter((sub) => {
-      const styleMatch =
-        sub.danceStyles.length === 0 ||
-        sub.danceStyles.some((style) => event.danceStyles.includes(style));
-      const cityMatch =
-        sub.cities.length === 0 ||
-        sub.cities.some((city) =>
-          event.city.toLowerCase().includes(city.toLowerCase())
-        );
-      return styleMatch && cityMatch;
-    });
+    const matchingSubscribers = dedupeSubscribersByEmail(
+      subscriptions.filter((sub) => {
+        const styleMatch =
+          sub.danceStyles.length === 0 ||
+          sub.danceStyles.some((style) => event.danceStyles.includes(style));
+        const cityMatch =
+          sub.cities.length === 0 ||
+          sub.cities.some((city) =>
+            event.city.toLowerCase().includes(city.toLowerCase())
+          );
+        return styleMatch && cityMatch;
+      })
+    );
 
     for (const subscriber of matchingSubscribers) {
+      const alreadySent = await prisma.notificationLog.findFirst({
+        where: {
+          email: subscriber.email,
+          eventId: event.id,
+          type: "new-event",
+        },
+      });
+
+      if (alreadySent) continue;
+
       const { subject, html } = generateNewEventEmail(
         event.title,
         format(event.startTime, "EEEE, MMMM d, yyyy"),
@@ -145,17 +158,19 @@ async function sendEventReminders(appBaseUrl: string) {
   let sentCount = 0;
 
   for (const event of upcomingEvents) {
-    const matchingSubscribers = subscriptions.filter((sub) => {
-      const styleMatch =
-        sub.danceStyles.length === 0 ||
-        sub.danceStyles.some((style) => event.danceStyles.includes(style));
-      const cityMatch =
-        sub.cities.length === 0 ||
-        sub.cities.some((city) =>
-          event.city.toLowerCase().includes(city.toLowerCase())
-        );
-      return styleMatch && cityMatch;
-    });
+    const matchingSubscribers = dedupeSubscribersByEmail(
+      subscriptions.filter((sub) => {
+        const styleMatch =
+          sub.danceStyles.length === 0 ||
+          sub.danceStyles.some((style) => event.danceStyles.includes(style));
+        const cityMatch =
+          sub.cities.length === 0 ||
+          sub.cities.some((city) =>
+            event.city.toLowerCase().includes(city.toLowerCase())
+          );
+        return styleMatch && cityMatch;
+      })
+    );
 
     for (const subscriber of matchingSubscribers) {
       const alreadySent = await prisma.notificationLog.findFirst({

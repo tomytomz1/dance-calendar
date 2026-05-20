@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  /** Avoid serving stale Turbopack server bundles after src changes. */
+  experimental: {
+    serverComponentsHmrCache: false,
+  },
   images: {
     remotePatterns: [
       {

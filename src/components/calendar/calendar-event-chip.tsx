@@ -3,11 +3,15 @@
 import { useState, useRef } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  getPrimaryDanceStyle,
+  getStyleChipClasses,
+} from "@/lib/dance-style-colors";
 import type { CalendarEvent } from "@/lib/types";
 
 interface CalendarEventChipProps {
   event: CalendarEvent;
-  variant: "month" | "week";
+  variant: "month" | "week" | "month-compact";
   onClick: (e: React.MouseEvent) => void;
 }
 
@@ -19,6 +23,10 @@ export function CalendarEventChip({
   const [showPreview, setShowPreview] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chipRef = useRef<HTMLDivElement>(null);
+
+  const primaryStyle = getPrimaryDanceStyle(event.danceStyles);
+  const { chip: chipClasses } = getStyleChipClasses(primaryStyle);
+  const timeShort = format(new Date(event.start), "ha").toLowerCase();
 
   const handleMouseEnter = () => {
     timeoutRef.current = setTimeout(() => setShowPreview(true), 400);
@@ -51,15 +59,24 @@ export function CalendarEventChip({
   );
 
   const isMonth = variant === "month";
+  const isCompact = variant === "month-compact";
+
+  const label = isCompact
+    ? event.title.length > 8
+      ? `${event.title.slice(0, 7)}…`
+      : event.title
+    : isMonth
+      ? `${timeShort} ${event.title}`
+      : event.title;
 
   return (
     <div
       ref={chipRef}
-      className="relative"
+      className="relative min-w-0"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {showPreview && previewContent}
+      {showPreview && !isCompact && previewContent}
       <div
         role="button"
         tabIndex={0}
@@ -72,19 +89,18 @@ export function CalendarEventChip({
         }}
         title={`${event.title} – ${format(new Date(event.start), "h:mm a")} at ${event.venue}`}
         className={cn(
-          "cursor-pointer rounded-full bg-primary/80 hover:bg-primary text-primary-foreground transition-colors text-left overflow-hidden",
-          isMonth
-            ? "w-full min-w-0 max-w-full px-1.5 py-0.5 h-5 flex items-center"
-            : "w-full h-6 px-2 flex items-center"
+          "cursor-pointer rounded-full transition-colors text-left overflow-hidden",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          chipClasses,
+          isCompact
+            ? "w-full min-w-0 max-w-full px-1 py-0.5 h-4 flex items-center"
+            : isMonth
+              ? "w-full min-w-0 max-w-full px-1.5 py-0.5 min-h-[20px] flex items-center"
+              : "w-full h-6 px-2 flex items-center"
         )}
       >
-        <span
-          className={cn(
-            "truncate block w-full",
-            isMonth ? "text-[10px] font-medium" : "text-xs font-medium"
-          )}
-        >
-          {event.title}
+        <span className="truncate block w-full text-xs font-medium">
+          {label}
         </span>
       </div>
     </div>

@@ -16,6 +16,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useScrollSync } from "@/hooks/use-scroll-sync";
 import type { CalendarEvent } from "@/lib/types";
+import { CalendarEventChip } from "./calendar-event-chip";
+import { CalendarEventListItem } from "./calendar-event-list-item";
 
 interface MobileMonthViewProps {
   currentDate: Date;
@@ -52,7 +54,7 @@ export function MobileMonthView({
     scrollContainerRef,
     onDateSelect,
     monthStart.toISOString(),
-    { viewType: "month" }
+    { viewType: "month", scrollRoot: "viewport" }
   );
 
   const handleDayClick = (d: Date) => {
@@ -92,149 +94,132 @@ export function MobileMonthView({
 
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  const daysWithEvents = calendarDays.filter((d) => getEventsForDay(d).length > 0);
+
   return (
-    <div className="flex-1 overflow-hidden touch-pan-y flex flex-col">
-      <AnimatePresence initial={false} custom={direction} mode="wait">
-        <motion.div
-          key={monthStart.toISOString()}
-          custom={direction}
-          variants={variants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{
-            x: { type: "spring", stiffness: 300, damping: 30 },
-            opacity: { duration: 0.2 },
-          }}
-          drag="x"
-          dragListener={false}
-          dragControls={dragControls}
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.2}
-          onDragEnd={handleDragEnd}
-          className="h-full flex flex-col"
-        >
-          <div
-            onPointerDown={(e) => dragControls.start(e)}
-            style={{ touchAction: "none" }}
-            className="shrink-0"
+    <div className="flex w-full max-w-full flex-col overflow-x-hidden">
+      <div className="overflow-x-hidden">
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.div
+            key={monthStart.toISOString()}
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: "spring", stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+            drag="x"
+            dragListener={false}
+            dragControls={dragControls}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0}
+            dragMomentum={false}
+            onDragEnd={handleDragEnd}
+            className="w-full shrink-0 overflow-x-hidden"
           >
-            <div className="grid grid-cols-7 border-b bg-muted/30">
-              {weekDays.map((d) => (
-                <div
-                  key={d}
-                  className="text-center py-2 text-xs font-medium text-muted-foreground"
-                >
-                  {d}
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 shrink-0">
-            {calendarDays.map((day) => {
-              const eventsForDay = getEventsForDay(day);
-              const isCurrentMonth = isSameMonth(day, currentDate);
-              const isCurrentDay = isToday(day);
-              const isSelected = isSameDay(day, currentDate);
-
-              return (
-                <button
-                  key={day.toISOString()}
-                  onClick={() => handleDayClick(day)}
-                  className={cn(
-                    "flex flex-col items-center justify-center p-1.5 border-r border-b last:border-r-0 min-h-[44px] transition-colors",
-                    !isCurrentMonth && "bg-muted/20",
-                    isSelected && "bg-primary/5",
-                    "hover:bg-muted/50 active:bg-muted"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "w-7 h-7 flex items-center justify-center rounded-full text-sm",
-                      !isCurrentMonth && "text-muted-foreground/50",
-                      isCurrentDay && "bg-primary text-primary-foreground font-bold",
-                      isSelected && !isCurrentDay && "bg-secondary font-medium"
-                    )}
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              style={{ touchAction: "none" }}
+              className="shrink-0"
+            >
+              <div className="grid grid-cols-7 border-b bg-muted/30">
+                {weekDays.map((d) => (
+                  <div
+                    key={d}
+                    className="text-center py-2 text-xs font-medium text-muted-foreground"
                   >
-                    {format(day, "d")}
-                  </span>
-                  <div className="flex items-center justify-center gap-0.5 mt-0.5">
-                    {eventsForDay.length === 0 ? null : eventsForDay.length <= 3 ? (
-                      Array.from({ length: eventsForDay.length }).map((_, i) => (
-                        <span
-                          key={i}
-                          className="w-1 h-1 rounded-full bg-primary/60"
-                        />
-                      ))
-                    ) : (
-                      <span className="text-[10px] text-muted-foreground">
-                        +{eventsForDay.length}
-                      </span>
-                    )}
+                    {d}
                   </div>
-                </button>
-              );
-            })}
-            </div>
-          </div>
+                ))}
+              </div>
 
-          <div
-            ref={scrollContainerRef}
-            className="px-4 pb-4 pt-0 space-y-6 border-t bg-card flex-1 overflow-y-auto overscroll-y-contain touch-pan-y min-h-0 [-webkit-overflow-scrolling:touch]"
-          >
-            {calendarDays
-              .filter((d) => getEventsForDay(d).length > 0)
-              .map((d) => {
-                const dayEvents = getEventsForDay(d);
-                return (
-                  <section
-                    key={d.toISOString()}
-                    ref={(el) => registerSection(d, el)}
-                    data-date={d.toISOString()}
-                    className="space-y-2"
-                  >
-                    <h3
+              <div className="grid grid-cols-7 shrink-0">
+                {calendarDays.map((day) => {
+                  const eventsForDay = getEventsForDay(day);
+                  const isCurrentMonth = isSameMonth(day, currentDate);
+                  const isCurrentDay = isToday(day);
+                  const isSelected = isSameDay(day, currentDate);
+
+                  return (
+                    <button
+                      key={day.toISOString()}
+                      onClick={() => handleDayClick(day)}
                       className={cn(
-                        "font-semibold text-sm text-muted-foreground bg-card py-1 z-10",
-                        isSameDay(d, currentDate) && "sticky top-0"
+                        "flex flex-col items-center justify-center p-1 border-r border-b last:border-r-0 min-h-[44px] transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                        !isCurrentMonth && "bg-muted/20",
+                        isSelected && "bg-primary/5",
+                        "hover:bg-muted/50 active:bg-muted"
                       )}
                     >
-                      {format(d, "EEEE, MMMM d")}
-                    </h3>
-                    {dayEvents.map((event) => (
-                      <button
-                        key={event.instanceKey ?? event.id}
-                        onClick={() => onEventClick(event)}
-                        className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
+                      <span
+                        className={cn(
+                          "w-7 h-7 flex items-center justify-center rounded-full text-sm",
+                          !isCurrentMonth && "text-muted-foreground/50",
+                          isCurrentDay &&
+                            "bg-primary text-primary-foreground font-bold ring-2 ring-primary ring-offset-1",
+                          isSelected && !isCurrentDay && "bg-secondary font-medium"
+                        )}
                       >
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-medium truncate text-sm">{event.title}</h4>
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              {format(new Date(event.start), "h:mm a")} -{" "}
-                              {format(new Date(event.end), "h:mm a")}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">{event.venue}</p>
-                          <div className="flex flex-wrap gap-1">
-                            {event.danceStyles.map((style) => (
-                              <span
-                                key={style}
-                                className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
-                              >
-                                {style}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </section>
-                );
-              })}
-          </div>
-        </motion.div>
-      </AnimatePresence>
+                        {format(day, "d")}
+                      </span>
+                      <div className="flex flex-col gap-0.5 w-full mt-0.5 px-0.5 min-w-0">
+                        {eventsForDay.slice(0, 2).map((event) => (
+                          <CalendarEventChip
+                            key={event.instanceKey ?? event.id}
+                            event={event}
+                            variant="month-compact"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEventClick(event);
+                            }}
+                          />
+                        ))}
+                        {eventsForDay.length > 2 && (
+                          <span className="text-xs text-muted-foreground text-center">
+                            +{eventsForDay.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <div
+        ref={scrollContainerRef}
+        className="touch-pan-y border-t bg-card px-4 pb-24 pt-0 space-y-6"
+      >
+        {daysWithEvents.map((d) => {
+          const dayEvents = getEventsForDay(d);
+          return (
+            <section
+              key={d.toISOString()}
+              ref={(el) => registerSection(d, el)}
+              data-date={d.toISOString()}
+              className="space-y-2"
+            >
+              <h3 className="py-1 text-sm font-semibold text-muted-foreground">
+                {format(d, "EEEE, MMMM d")}
+              </h3>
+              {dayEvents.map((event) => (
+                <CalendarEventListItem
+                  key={event.instanceKey ?? event.id}
+                  event={event}
+                  onClick={() => onEventClick(event)}
+                />
+              ))}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }

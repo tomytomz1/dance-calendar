@@ -14,6 +14,7 @@ import {
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { CalendarEventChip } from "./calendar-event-chip";
+import { CalendarEventListItem } from "./calendar-event-list-item";
 import type { CalendarEvent } from "@/lib/types";
 
 interface MonthViewProps {
@@ -124,6 +125,7 @@ export function MonthView({
                   onClick={() => onDateSelect(day)}
                   className={cn(
                     "flex flex-col items-center p-1 border-r border-b last:border-r-0 min-h-[60px] transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                     !isCurrentMonth && "bg-muted/20",
                     isSelected && "bg-primary/5",
                     "hover:bg-muted/50 active:bg-muted"
@@ -133,7 +135,8 @@ export function MonthView({
                     className={cn(
                       "w-7 h-7 flex items-center justify-center rounded-full text-sm",
                       !isCurrentMonth && "text-muted-foreground/50",
-                      isCurrentDay && "bg-primary text-primary-foreground font-bold",
+                      isCurrentDay &&
+                        "bg-primary text-primary-foreground font-bold ring-2 ring-primary ring-offset-1",
                       isSelected && !isCurrentDay && "bg-secondary font-medium"
                     )}
                   >
@@ -172,30 +175,11 @@ export function MonthView({
               </p>
             ) : (
               getEventsForDay(currentDate).map((event) => (
-                <button
+                <CalendarEventListItem
                   key={event.instanceKey ?? event.id}
+                  event={event}
                   onClick={() => onEventClick(event)}
-                  className="w-full text-left p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate text-sm">{event.title}</h4>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(event.start), "h:mm a")} - {event.venue}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {event.danceStyles.map((style) => (
-                        <span
-                          key={style}
-                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary"
-                        >
-                          {style}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </button>
+                />
               ))
             )}
           </div>

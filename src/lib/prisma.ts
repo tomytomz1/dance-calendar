@@ -6,7 +6,10 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   return new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    // In dev, Prisma logs failed queries to stderr; Next.js 16 shows those as
+    // "Console PrismaClientInitializationError" even when the app catches them.
+    log: process.env.NODE_ENV === "development" ? [] : ["error"],
+    errorFormat: "minimal",
   });
 }
 

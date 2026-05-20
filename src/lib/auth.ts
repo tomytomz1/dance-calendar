@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+import { linkSubscriptionToUser } from "./subscription-link";
 import type { UserRole } from "@prisma/client";
 
 declare module "next-auth" {
@@ -97,6 +98,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
+  events: {
+    async signIn({ user }) {
+      if (user.id && user.email) {
+        await linkSubscriptionToUser({
+          userId: user.id,
+          email: user.email,
+          name: user.name,
+        });
+      }
+    },
+  },
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       if (user) {

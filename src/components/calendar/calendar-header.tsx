@@ -22,9 +22,9 @@ export function CalendarHeader({
   onViewChange,
 }: CalendarHeaderProps) {
   return (
-    <div className="flex flex-col gap-3 p-4 bg-card border-b sticky top-0 z-10">
+    <div className="flex flex-col gap-3 p-4 bg-card border-b sticky top-0 z-20 shadow-sm">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">
+        <h2 className="font-display text-xl font-bold">
           {format(currentDate, view === "month" ? "MMMM yyyy" : "MMM d, yyyy")}
         </h2>
         <div className="flex items-center gap-1">

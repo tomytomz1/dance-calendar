@@ -7,9 +7,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { UpcomingEventsList } from "@/components/seo/upcoming-events-list";
 import {
   buildItemListJsonLd,
-  getDistinctCities,
-  getDistinctDanceStyles,
-  getUpcomingApprovedEvents,
+  getEventsIndexPageData,
   cityPath,
   stylePath,
   SITE_NAME,
@@ -26,11 +24,8 @@ export const metadata: Metadata = buildPublicPageMetadata({
 });
 
 export default async function EventsIndexPage() {
-  const [events, cities, styles] = await Promise.all([
-    getUpcomingApprovedEvents({ limit: 200 }),
-    getDistinctCities(),
-    getDistinctDanceStyles(),
-  ]);
+  // Single DB round-trip (not Promise.all) — see getEventsIndexPageData in lib/seo.ts
+  const { events, cities, styles } = await getEventsIndexPageData(200);
 
   return (
     <div className="min-h-screen flex flex-col">

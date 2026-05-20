@@ -8,13 +8,14 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Check, X, Calendar, Users, Clock, Trash2, Music } from "lucide-react";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
 import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
 import { AdminStats } from "./admin-stats";
+import { AdminSectionNav } from "./admin-section-nav";
 
 interface Organizer {
   id: string;
@@ -140,6 +141,7 @@ export default function AdminPage() {
   const [deleteTarget, setDeleteTarget] = useState<AdminEvent | null>(null);
   const [deleteOrgTarget, setDeleteOrgTarget] = useState<Organizer | null>(null);
   const [deleteDancerTarget, setDeleteDancerTarget] = useState<Dancer | null>(null);
+  const [adminSection, setAdminSection] = useState("pending");
 
   useEffect(() => {
     if (status === "loading") return;
@@ -300,10 +302,10 @@ export default function AdminPage() {
     (dancerPage - 1) * PAGE_SIZE + dancers.length < totalDancers;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl font-bold sm:text-2xl">Admin Dashboard</h1>
+        <p className="hidden text-muted-foreground sm:block">
           Manage organizers and approve events
         </p>
       </div>
@@ -315,33 +317,25 @@ export default function AdminPage() {
         totalDancers={totalDancers}
       />
 
-      <Tabs defaultValue="pending" className="space-y-4">
-        <TabsList className="flex w-full overflow-x-auto justify-start sm:grid sm:grid-cols-4">
-          <TabsTrigger value="pending">
-            <span className="sm:hidden">Pending ({pendingEvents.length})</span>
-            <span className="hidden sm:inline">
-              Pending Events ({pendingEvents.length})
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="all-events">
-            <span className="sm:hidden">Events ({allEvents.length})</span>
-            <span className="hidden sm:inline">
-              All Events ({allEvents.length})
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="organizers">
-            Organizers ({totalOrganizers})
-          </TabsTrigger>
-          <TabsTrigger value="dancers">
-            Dancers ({totalDancers})
-          </TabsTrigger>
-        </TabsList>
+      <Tabs
+        value={adminSection}
+        onValueChange={setAdminSection}
+        className="space-y-3 sm:space-y-4"
+      >
+        <AdminSectionNav
+          value={adminSection}
+          onValueChange={setAdminSection}
+          pendingCount={pendingEvents.length}
+          eventsCount={allEvents.length}
+          organizersCount={totalOrganizers}
+          dancersCount={totalDancers}
+        />
 
         {/* Pending Events - Approve / Reject only */}
         <TabsContent value="pending" className="space-y-4">
           {pendingEvents.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
+              <CardContent className="py-8 text-center sm:py-12">
                 <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No pending events</p>
               </CardContent>
@@ -399,7 +393,7 @@ export default function AdminPage() {
         <TabsContent value="all-events" className="space-y-4">
           {allEvents.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
+              <CardContent className="py-8 text-center sm:py-12">
                 <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No events found</p>
               </CardContent>
@@ -599,7 +593,7 @@ export default function AdminPage() {
         <TabsContent value="dancers" className="space-y-4">
           {dancers.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
+              <CardContent className="py-8 text-center sm:py-12">
                 <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No dancers yet</p>
               </CardContent>

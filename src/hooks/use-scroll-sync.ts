@@ -20,6 +20,8 @@ export function useScrollSync(
     rootMargin?: string;
     /** Only accept section dates that belong to this view (prevents bounce-back during AnimatePresence transitions) */
     viewType?: "week" | "month";
+    /** Use window scroll (mobile) instead of a nested overflow container */
+    scrollRoot?: "element" | "viewport";
   }
 ) {
   const sectionsRef = useRef<Map<string, { date: Date; element: HTMLElement }>>(
@@ -33,6 +35,8 @@ export function useScrollSync(
   const skipAfterScrollMs = options?.skipAfterScrollMs ?? 500;
   const rootMargin = options?.rootMargin ?? "-10% 0px -70% 0px";
   const viewType = options?.viewType;
+  const scrollRoot = options?.scrollRoot ?? "element";
+  const useViewportRoot = scrollRoot === "viewport";
   const debounceMs = 180;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDateRef = useRef<Date | null>(null);
@@ -65,22 +69,27 @@ export function useScrollSync(
     (date: Date) => {
       const key = date.toDateString();
       const entry = sectionsRef.current.get(key);
-      const container = scrollContainerRef.current;
-      if (entry && container) {
-        skipUntilRef.current = Date.now() + skipAfterScrollMs;
-        // Use header (first child) as scroll target so date snaps flush to calendar
-        const scrollTarget = entry.element.firstElementChild ?? entry.element;
-        const rect = scrollTarget.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        const paddingTop = parseFloat(getComputedStyle(container).paddingTop) || 0;
-        // Add paddingTop to scroll more: align header to container's top edge (flush with calendar),
-        // not the inner content area, so no previous content peeks through
-        const scrollTop =
-          container.scrollTop + (rect.top - containerRect.top) + paddingTop;
-        container.scrollTo({ top: Math.max(0, scrollTop), behavior: "instant" });
+      if (!entry) return;
+
+      skipUntilRef.current = Date.now() + skipAfterScrollMs;
+      const scrollTarget = entry.element.firstElementChild ?? entry.element;
+
+      if (useViewportRoot) {
+        scrollTarget.scrollIntoView({ block: "start", behavior: "instant" });
+        return;
       }
+
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const rect = scrollTarget.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const paddingTop = parseFloat(getComputedStyle(container).paddingTop) || 0;
+      const scrollTop =
+        container.scrollTop + (rect.top - containerRect.top) + paddingTop;
+      container.scrollTo({ top: Math.max(0, scrollTop), behavior: "instant" });
     },
-    [scrollContainerRef, skipAfterScrollMs]
+    [scrollContainerRef, skipAfterScrollMs, useViewportRoot]
   );
 
   useEffect(() => {
@@ -139,7 +148,11 @@ export function useScrollSync(
             }
           });
         },
-        { root: container, rootMargin, threshold: [0, 0.1, 0.5, 1] }
+        {
+          root: useViewportRoot ? null : container,
+          rootMargin,
+          threshold: [0, 0.1, 0.5, 1],
+        }
       );
 
       sections.forEach(({ element }) => observer.observe(element));
@@ -156,7 +169,7 @@ export function useScrollSync(
       debounceRef.current = null;
       cleanupRef.current?.();
     };
-  }, [scrollContainerRef, onDateSelect, rootMargin, viewKey, isDateInView]);
+  }, [scrollContainerRef, onDateSelect, rootMargin, viewKey, isDateInView, useViewportRoot]);
 
   return { registerSection, scrollToSection };
 }
