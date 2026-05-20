@@ -3,6 +3,13 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import {
+  SITE_NAME,
+  SITE_URL,
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+} from "@/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,22 +22,60 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const defaultDescription =
+  "Find salsa, bachata, kizomba, swing, and ballroom dance events across Michigan. Updated calendar of socials, classes, and parties near you.";
+
 export const metadata: Metadata = {
-  title: "Dance Calendar - Find Dance Events Near You",
-  description: "Discover dance events in your area. Salsa, bachata, swing, ballroom and more. Never miss a dance event again!",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — Salsa, Bachata, Swing & Ballroom Events in Michigan`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: defaultDescription,
   manifest: "/manifest.json",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — Dance Events in Michigan`,
+    description: defaultDescription,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Dance Events in Michigan`,
+    description: defaultDescription,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Dance Calendar",
+    title: SITE_NAME,
   },
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? {
+        verification: {
+          google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+        },
+      }
+    : {}),
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
@@ -47,6 +92,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
+        <JsonLdScript
+          data={[buildOrganizationJsonLd(), buildWebSiteJsonLd()]}
+        />
         <SessionProvider>
           {children}
           <Toaster position="top-center" richColors />

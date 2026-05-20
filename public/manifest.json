@@ -1,7 +1,7 @@
 {
-  "name": "Dance Calendar",
-  "short_name": "Dance Cal",
-  "description": "Find dance events near you. Never miss a dance event again!",
+  "name": "MichiganDance.Life",
+  "short_name": "MI Dance",
+  "description": "Find salsa, bachata, swing, and ballroom dance events across Michigan.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -63,12 +63,12 @@
     {
       "name": "View Calendar",
       "url": "/",
-      "description": "Open the dance event calendar"
+      "description": "Open the Michigan dance event calendar"
     },
     {
-      "name": "Create Event",
-      "url": "/organizer/events/new",
-      "description": "Create a new dance event"
+      "name": "Browse Events",
+      "url": "/events",
+      "description": "See all upcoming dance events"
     }
   ]
 }

@@ -1,0 +1,321 @@
+import { slugify } from "@/lib/slug";
+import { safeHttpOrHttpsUrl } from "@/lib/safe-external-url";
+import { prisma } from "@/lib/prisma";
+
+export const SITE_NAME = "MichiganDance.Life";
+
+const DEFAULT_SITE_URL = "https://michigandance.life";
+
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  process.env.NEXT_PUBLIC_APP_URL ??
+  DEFAULT_SITE_URL
+).replace(/\/$/, "");
+
+export type SeoEventRecord = {
+  id: string;
+  slug: string | null;
+  title: string;
+  description: string | null;
+  venue: string;
+  address: string;
+  city: string;
+  danceStyles: string[];
+  startTime: Date;
+  endTime: Date;
+  imageUrl: string | null;
+  ticketUrl: string | null;
+  price: string | null;
+  status: string;
+  updatedAt: Date;
+  organizer: { name: string | null };
+};
+
+export function absoluteUrl(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${SITE_URL}${normalized}`;
+}
+
+export function getEventPath(event: { id: string; slug: string | null }): string {
+  return `/event/${event.slug ?? event.id}`;
+}
+
+export { slugify };
+
+export function citySlug(city: string): string {
+  return slugify(city);
+}
+
+export function styleSlug(style: string): string {
+  return slugify(style);
+}
+
+export function cityPath(city: string): string {
+  return `/events/city/${citySlug(city)}`;
+}
+
+export function stylePath(style: string): string {
+  return `/events/style/${styleSlug(style)}`;
+}
+
+export function formatEventDateForMeta(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "America/Detroit",
+  });
+}
+
+function mapEventStatus(status: string): string {
+  if (status === "CANCELLED") return "https://schema.org/EventCancelled";
+  return "https://schema.org/EventScheduled";
+}
+
+export function buildEventJsonLd(
+  event: SeoEventRecord,
+  options?: { instanceStart?: Date; instanceEnd?: Date }
+) {
+  const start = options?.instanceStart ?? event.startTime;
+  const end = options?.instanceEnd ?? event.endTime;
+  const image = safeHttpOrHttpsUrl(event.imageUrl);
+  const ticketUrl = safeHttpOrHttpsUrl(event.ticketUrl);
+
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: event.title,
+    description:
+      event.description?.trim() ||
+      `${event.title} at ${event.venue} in ${event.city}, Michigan.`,
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
+    eventStatus: mapEventStatus(event.status),
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    location: {
+      "@type": "Place",
+      name: event.venue,
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: event.address,
+        addressLocality: event.city,
+        addressRegion: "MI",
+        addressCountry: "US",
+      },
+    },
+    organizer: {
+      "@type": "Organization",
+      name: event.organizer.name || SITE_NAME,
+    },
+    url: absoluteUrl(getEventPath(event)),
+  };
+
+  if (image) {
+    jsonLd.image = [image];
+  }
+
+  if (ticketUrl || event.price) {
+    jsonLd.offers = {
+      "@type": "Offer",
+      url: ticketUrl ?? absoluteUrl(getEventPath(event)),
+      price: event.price || "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+    };
+  }
+
+  return jsonLd;
+}
+
+export function buildOrganizationJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: absoluteUrl("/michigandancelife-header-logo.png"),
+    description:
+      "Discover salsa, bachata, swing, ballroom, and social dance events across Michigan.",
+    areaServed: {
+      "@type": "State",
+      name: "Michigan",
+    },
+  };
+}
+
+export function buildWebSiteJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    url: SITE_URL,
+    description:
+      "Michigan's dance event calendar — find salsa, bachata, kizomba, swing, and ballroom nights near you.",
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+  };
+}
+
+export function buildBreadcrumbJsonLd(
+  items: { name: string; path: string }[]
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: absoluteUrl(item.path),
+    })),
+  };
+}
+
+export function buildItemListJsonLd(
+  events: SeoEventRecord[],
+  listName: string
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: listName,
+    numberOfItems: events.length,
+    itemListElement: events.map((event, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: absoluteUrl(getEventPath(event)),
+      name: event.title,
+    })),
+  };
+}
+
+const seoEventSelect = {
+  id: true,
+  slug: true,
+  title: true,
+  description: true,
+  venue: true,
+  address: true,
+  city: true,
+  danceStyles: true,
+  startTime: true,
+  endTime: true,
+  imageUrl: true,
+  ticketUrl: true,
+  price: true,
+  status: true,
+  updatedAt: true,
+  organizer: { select: { name: true } },
+} as const;
+
+export async function getUpcomingApprovedEvents(options?: {
+  limit?: number;
+  citySlugParam?: string;
+  styleSlugParam?: string;
+}): Promise<SeoEventRecord[]> {
+  try {
+  const limit = options?.limit ?? 500;
+  const now = new Date();
+
+  const events = await prisma.event.findMany({
+    where: {
+      status: "APPROVED",
+      endTime: { gte: now },
+    },
+    select: seoEventSelect,
+    orderBy: { startTime: "asc" },
+    take: limit * 3,
+  });
+
+  let filtered = events as SeoEventRecord[];
+
+  if (options?.citySlugParam) {
+    filtered = filtered.filter(
+      (e) => citySlug(e.city) === options.citySlugParam
+    );
+  }
+
+  if (options?.styleSlugParam) {
+    filtered = filtered.filter((e) =>
+      e.danceStyles.some((s) => styleSlug(s) === options.styleSlugParam)
+    );
+  }
+
+  return filtered.slice(0, limit);
+  } catch (error) {
+    console.error("getUpcomingApprovedEvents:", error);
+    return [];
+  }
+}
+
+export async function getDistinctCities(): Promise<string[]> {
+  try {
+  const rows = await prisma.event.findMany({
+    where: { status: "APPROVED" },
+    select: { city: true },
+    distinct: ["city"],
+    orderBy: { city: "asc" },
+  });
+  return rows.map((r) => r.city).filter(Boolean);
+  } catch (error) {
+    console.error("getDistinctCities:", error);
+    return [];
+  }
+}
+
+export async function getDistinctDanceStyles(): Promise<string[]> {
+  try {
+  const rows = await prisma.event.findMany({
+    where: { status: "APPROVED" },
+    select: { danceStyles: true },
+  });
+  const set = new Set<string>();
+  for (const row of rows) {
+    for (const style of row.danceStyles) {
+      if (style?.trim()) set.add(style.trim());
+    }
+  }
+  return [...set].sort((a, b) => a.localeCompare(b));
+  } catch (error) {
+    console.error("getDistinctDanceStyles:", error);
+    return [];
+  }
+}
+
+export async function getApprovedEventsForSitemap(): Promise<
+  Pick<SeoEventRecord, "id" | "slug" | "updatedAt" | "city" | "danceStyles">[]
+> {
+  try {
+  return prisma.event.findMany({
+    where: { status: "APPROVED" },
+    select: {
+      id: true,
+      slug: true,
+      updatedAt: true,
+      city: true,
+      danceStyles: true,
+    },
+  });
+  } catch (error) {
+    console.error("getApprovedEventsForSitemap:", error);
+    return [];
+  }
+}
+
+export function findCityBySlug(
+  cities: string[],
+  slugParam: string
+): string | undefined {
+  return cities.find((c) => citySlug(c) === slugParam);
+}
+
+export function findStyleBySlug(
+  styles: string[],
+  slugParam: string
+): string | undefined {
+  return styles.find((s) => styleSlug(s) === slugParam);
+}

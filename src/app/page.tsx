@@ -1,23 +1,34 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { addMonths, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { Prisma } from "@prisma/client";
 import { Header } from "@/components/layout/header";
 import { EventCalendarWrapper } from "@/components/calendar/event-calendar-wrapper";
 import { CalendarLoadError } from "@/components/calendar/calendar-load-error";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { UpcomingEventsList } from "@/components/seo/upcoming-events-list";
+import {
+  buildItemListJsonLd,
+  getUpcomingApprovedEvents,
+  SITE_NAME,
+} from "@/lib/seo";
+import { buildPublicPageMetadata } from "@/lib/seo-metadata";
 import { prisma, resetPrismaClient } from "@/lib/prisma";
 import { generateRecurrenceInstances } from "@/lib/recurrence";
 import type { CalendarEvent } from "@/lib/types";
 
 const MAX_DB_RETRIES = 3;
 const RETRY_DELAY_MS = 1500;
+const SEO_LIST_LIMIT = 30;
 
-function isConnectionError(err: unknown): boolean {
-  if (err && typeof err === "object" && "code" in err) {
-    return (err as { code?: string }).code === "P1001";
-  }
-  const msg = err instanceof Error ? err.message : String(err);
-  return msg.includes("Can't reach database server");
-}
+export const revalidate = 300;
+
+export const metadata: Metadata = buildPublicPageMetadata({
+  title: `${SITE_NAME} — Dance Events in Michigan`,
+  description:
+    "Find salsa, bachata, kizomba, swing, and ballroom dance events across Michigan. Browse the calendar or see upcoming socials and classes listed below.",
+  path: "/",
+});
 
 function CalendarSkeleton() {
   return (
@@ -40,9 +51,13 @@ function CalendarSkeleton() {
   );
 }
 
-// Ensure calendar always fetches fresh events (e.g. after admin approval)
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+function isConnectionError(err: unknown): boolean {
+  if (err && typeof err === "object" && "code" in err) {
+    return (err as { code?: string }).code === "P1001";
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("Can't reach database server");
+}
 
 async function getEvents(): Promise<
   { events: CalendarEvent[]; error?: string }
@@ -164,10 +179,19 @@ async function getEvents(): Promise<
 }
 
 export default async function HomePage() {
-  const { events, error } = await getEvents();
+  const [{ events, error }, seoEvents] = await Promise.all([
+    getEvents(),
+    getUpcomingApprovedEvents({ limit: SEO_LIST_LIMIT }),
+  ]);
 
   return (
     <div className="min-h-screen flex flex-col">
+      <JsonLdScript
+        data={buildItemListJsonLd(
+          seoEvents,
+          "Upcoming dance events in Michigan"
+        )}
+      />
       <Header />
       <main className="flex-1">
         <Suspense fallback={<CalendarSkeleton />}>
@@ -179,6 +203,21 @@ export default async function HomePage() {
             )}
           </div>
         </Suspense>
+        <div className="container mx-auto px-4 max-w-3xl">
+          <h1 className="text-2xl font-bold pt-8 pb-2">
+            Dance Events in Michigan
+          </h1>
+          <p className="text-muted-foreground mb-4">
+            Browse salsa, bachata, kizomba, swing, and ballroom socials on the
+            calendar above, or explore upcoming listings below.
+          </p>
+          <UpcomingEventsList
+            events={seoEvents}
+            heading="Upcoming events"
+            showHubLinks
+            listId="home-upcoming-events"
+          />
+        </div>
       </main>
     </div>
   );
