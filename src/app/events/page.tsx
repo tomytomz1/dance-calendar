@@ -7,11 +7,11 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { UpcomingEventsList } from "@/components/seo/upcoming-events-list";
 import {
   buildItemListJsonLd,
-  getEventsIndexPageData,
   cityPath,
   stylePath,
   SITE_NAME,
 } from "@/lib/seo";
+import { getEventsIndexPageData } from "@/lib/home-events";
 import { buildPublicPageMetadata } from "@/lib/seo-metadata";
 
 export const revalidate = 600;
@@ -24,8 +24,8 @@ export const metadata: Metadata = buildPublicPageMetadata({
 });
 
 export default async function EventsIndexPage() {
-  // Single DB round-trip (not Promise.all) — see getEventsIndexPageData in lib/seo.ts
-  const { events, cities, styles } = await getEventsIndexPageData(200);
+  // Same expanded upcoming list as homepage — see getEventsIndexPageData in lib/home-events.ts
+  const { events, cities, styles } = await getEventsIndexPageData();
 
   return (
     <div className="min-h-screen flex flex-col">

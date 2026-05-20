@@ -4,7 +4,13 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateRecurrenceInstances } from "@/lib/recurrence";
 import { tryDb } from "@/lib/with-db-retry";
-import { citySlug, styleSlug, type SeoEventRecord } from "@/lib/seo";
+import {
+  citySlug,
+  styleSlug,
+  deriveCitiesFromEvents,
+  deriveDanceStylesFromEvents,
+  type SeoEventRecord,
+} from "@/lib/seo";
 import type { CalendarEvent } from "@/lib/types";
 
 const seoEventSelect = {
@@ -188,7 +194,9 @@ export async function getHomePageEvents(): Promise<HomePageEventsResult> {
 }
 
 /** Upcoming list window — matches homepage list tab and city/style hub counts. */
-function filterUpcomingListWindow(events: HomeListEventRecord[]): HomeListEventRecord[] {
+export function filterUpcomingListWindow(
+  events: HomeListEventRecord[]
+): HomeListEventRecord[] {
   const now = new Date();
   const listRangeEnd = endOfDay(addMonths(now, 1));
   return events.filter(
@@ -225,3 +233,32 @@ export const getFilteredHubListEvents = cache(
     return filtered;
   }
 );
+
+/** Full upcoming list for /events — same data as homepage list tab. */
+export async function getUpcomingListEvents(): Promise<HomeListEventRecord[]> {
+  const { listEvents, error } = await getHomePageEvents();
+  if (error) return [];
+  return filterUpcomingListWindow(listEvents);
+}
+
+/** /events index: one load, cities/styles derived from the same list as home. */
+export async function getEventsIndexPageData(): Promise<{
+  events: HomeListEventRecord[];
+  cities: string[];
+  styles: string[];
+}> {
+  const result = await tryDb("getEventsIndexPageData", async () => {
+    const events = await getUpcomingListEvents();
+    return {
+      events,
+      cities: deriveCitiesFromEvents(events),
+      styles: deriveDanceStylesFromEvents(events),
+    };
+  });
+
+  if (!result.ok) {
+    return { events: [], cities: [], styles: [] };
+  }
+
+  return result.data;
+}

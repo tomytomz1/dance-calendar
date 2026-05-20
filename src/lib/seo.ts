@@ -341,28 +341,6 @@ export const getUpcomingApprovedEvents = cache(
     )
 );
 
-/** One DB round-trip for /events index (avoids parallel Prisma calls when Neon is down). */
-export async function getEventsIndexPageData(limit = 200): Promise<{
-  events: SeoEventRecord[];
-  cities: string[];
-  styles: string[];
-}> {
-  const result = await tryDb("getEventsIndexPageData", async () => {
-    const events = await queryUpcomingApprovedEvents({ limit });
-    return {
-      events,
-      cities: deriveCitiesFromEvents(events),
-      styles: deriveDanceStylesFromEvents(events),
-    };
-  });
-
-  if (!result.ok) {
-    return { events: [], cities: [], styles: [] };
-  }
-
-  return result.data;
-}
-
 export const getDistinctCities = cache(async (): Promise<string[]> =>
   withDbRetry("getDistinctCities", async () => {
     const rows = await prisma.event.findMany({
