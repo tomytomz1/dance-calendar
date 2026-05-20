@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { EventCountBanner } from "@/components/seo/event-count-banner";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { UpcomingEventsList } from "@/components/seo/upcoming-events-list";
 import {
@@ -40,10 +42,13 @@ export default async function EventsIndexPage() {
         <h1 className="text-2xl font-bold mb-2">
           Upcoming Dance Events in Michigan
         </h1>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-muted-foreground mb-2">
           Find socials, classes, and parties on {SITE_NAME}. Browse by city or
           dance style below.
         </p>
+        <div className="mb-6">
+          <EventCountBanner count={events.length} />
+        </div>
 
         {(cities.length > 0 || styles.length > 0) && (
           <nav className="mb-8 space-y-4" aria-label="Browse events">
@@ -91,6 +96,7 @@ export default async function EventsIndexPage() {
           listId="events-index-list"
         />
       </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -7,7 +7,10 @@ const getResend = () => {
   return new Resend(process.env.RESEND_API_KEY);
 };
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "Dance Calendar <noreply@example.com>";
+const FROM_EMAIL =
+  process.env.EMAIL_FROM || "MichiganDance.Life <noreply@michigandance.life>";
+const BRAND = "MichiganDance.Life";
+const TAGLINE = "Find dance events across Michigan";
 
 export interface EmailOptions {
   to: string | string[];
@@ -50,8 +53,8 @@ export async function sendEmail(options: EmailOptions) {
 
 export function generateWelcomeEmail(name: string, isOrganizer: boolean) {
   const subject = isOrganizer
-    ? "Welcome to Dance Calendar - Organizer Registration"
-    : "Welcome to Dance Calendar!";
+    ? `Welcome to ${BRAND} — Organizer Registration`
+    : `Welcome to ${BRAND}!`;
 
   const html = `
     <!DOCTYPE html>
@@ -62,7 +65,7 @@ export function generateWelcomeEmail(name: string, isOrganizer: boolean) {
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #8b5cf6; margin-bottom: 10px;">Dance Calendar</h1>
+          <h1 style="color: #8b5cf6; margin-bottom: 10px;">${BRAND}</h1>
         </div>
         
         <h2>Welcome, ${name}!</h2>
@@ -70,7 +73,7 @@ export function generateWelcomeEmail(name: string, isOrganizer: boolean) {
         ${
           isOrganizer
             ? `
-          <p>Thank you for registering as an event organizer on Dance Calendar!</p>
+          <p>Thank you for registering as an event organizer on ${BRAND}!</p>
           <p>Your account is currently pending approval. Once an admin reviews and approves your account, you'll be able to:</p>
           <ul>
             <li>Create and manage dance events</li>
@@ -80,7 +83,7 @@ export function generateWelcomeEmail(name: string, isOrganizer: boolean) {
           <p>We'll notify you once your account is approved.</p>
         `
             : `
-          <p>Thank you for joining Dance Calendar!</p>
+          <p>Thank you for joining ${BRAND}!</p>
           <p>You can now:</p>
           <ul>
             <li>Browse dance events in your area</li>
@@ -91,7 +94,7 @@ export function generateWelcomeEmail(name: string, isOrganizer: boolean) {
         }
         
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">
-          <p>Dance Calendar - Find your rhythm</p>
+          <p>${BRAND} — ${TAGLINE}</p>
         </div>
       </body>
     </html>
@@ -121,7 +124,7 @@ export function generateNewEventEmail(
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #8b5cf6; margin-bottom: 10px;">Dance Calendar</h1>
+          <h1 style="color: #8b5cf6; margin-bottom: 10px;">${BRAND}</h1>
         </div>
         
         <h2>New Event Alert!</h2>
@@ -153,7 +156,7 @@ export function generateNewEventEmail(
 }
 
 export function generatePasswordResetEmail(name: string | null, resetUrl: string) {
-  const subject = "Reset your Dance Calendar password";
+  const subject = `Reset your ${BRAND} password`;
 
   const html = `
     <!DOCTYPE html>
@@ -164,7 +167,7 @@ export function generatePasswordResetEmail(name: string | null, resetUrl: string
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #8b5cf6; margin-bottom: 10px;">Dance Calendar</h1>
+          <h1 style="color: #8b5cf6; margin-bottom: 10px;">${BRAND}</h1>
         </div>
 
         <h2>Password reset request</h2>
@@ -183,7 +186,7 @@ export function generatePasswordResetEmail(name: string | null, resetUrl: string
         <p style="color: #666; font-size: 14px; word-break: break-all;">Or copy this link: ${resetUrl}</p>
 
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">
-          <p>Dance Calendar - Find your rhythm</p>
+          <p>${BRAND} — ${TAGLINE}</p>
         </div>
       </body>
     </html>
@@ -211,7 +214,7 @@ export function generateEventReminderEmail(
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #8b5cf6; margin-bottom: 10px;">Dance Calendar</h1>
+          <h1 style="color: #8b5cf6; margin-bottom: 10px;">${BRAND}</h1>
         </div>
         
         <h2>Event Reminder</h2>
@@ -233,7 +236,7 @@ export function generateEventReminderEmail(
         </div>
         
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">
-          <p>Dance Calendar - Find your rhythm</p>
+          <p>${BRAND} — ${TAGLINE}</p>
         </div>
       </body>
     </html>

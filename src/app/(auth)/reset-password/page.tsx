@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
+import { AuthBrand } from "@/components/layout/auth-brand";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -87,11 +88,7 @@ function ResetPasswordForm() {
   return (
     <Card className="border-0 shadow-xl">
       <CardHeader className="space-y-1 text-center">
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <KeyRound className="w-8 h-8 text-primary" />
-          </div>
-        </div>
+        <AuthBrand />
         <CardTitle className="text-2xl font-bold">Set a new password</CardTitle>
         <CardDescription>
           Choose a strong password with at least 8 characters.

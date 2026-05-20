@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ProfileForm } from "@/components/profile/profile-form";
+import { SubscriptionPreferences } from "@/components/profile/subscription-preferences";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -45,6 +46,7 @@ export default async function ProfilePage() {
       </div>
 
       <ProfileForm initialData={serializedUser} />
+      <SubscriptionPreferences userEmail={user.email} />
     </div>
   );
 }

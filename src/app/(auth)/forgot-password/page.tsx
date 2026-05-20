@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
+import { AuthBrand } from "@/components/layout/auth-brand";
 
 export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -53,11 +54,7 @@ export default function ForgotPasswordPage() {
   return (
     <Card className="border-0 shadow-xl">
       <CardHeader className="space-y-1 text-center">
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Mail className="w-8 h-8 text-primary" />
-          </div>
-        </div>
+        <AuthBrand />
         <CardTitle className="text-2xl font-bold">Forgot password?</CardTitle>
         <CardDescription>
           {isSubmitted

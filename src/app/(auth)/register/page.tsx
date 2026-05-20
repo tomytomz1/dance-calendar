@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AuthBrand } from "@/components/layout/auth-brand";
 
 type Role = "dancer" | "organizer" | null;
 
@@ -65,23 +66,7 @@ export default function RegisterPage() {
     return (
       <Card className="border-0 shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                />
-              </svg>
-            </div>
-          </div>
+          <AuthBrand />
           <CardTitle className="text-2xl font-bold">How will you use the app?</CardTitle>
           <CardDescription>
             Choose your role to get started
@@ -172,15 +157,7 @@ export default function RegisterPage() {
   return (
     <Card className="border-0 shadow-xl">
       <CardHeader className="space-y-1 text-center">
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            {isOrganizer ? (
-              <CalendarPlus className="w-8 h-8 text-primary" />
-            ) : (
-              <Music className="w-8 h-8 text-primary" />
-            )}
-          </div>
-        </div>
+        <AuthBrand />
         <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
         <CardDescription>
           Join the dance community today

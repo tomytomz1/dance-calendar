@@ -1,6 +1,7 @@
 import { slugify } from "@/lib/slug";
 import { safeHttpOrHttpsUrl } from "@/lib/safe-external-url";
 import { prisma } from "@/lib/prisma";
+import { generateRecurrenceInstances } from "@/lib/recurrence";
 
 export const SITE_NAME = "MichiganDance.Life";
 
@@ -209,8 +210,52 @@ const seoEventSelect = {
   price: true,
   status: true,
   updatedAt: true,
+  isRecurring: true,
   organizer: { select: { name: true } },
+  recurrenceRule: true,
 } as const;
+
+function withNextOccurrence(
+  event: SeoEventRecord & {
+    isRecurring: boolean;
+    recurrenceRule: {
+      frequency: string;
+      interval: number;
+      daysOfWeek: number[];
+      until: Date | null;
+      count: number | null;
+      monthlyPattern: string;
+      monthlyDayOfWeek: number | null;
+      monthlyWeeks: number[];
+    } | null;
+  }
+): SeoEventRecord {
+  if (!event.isRecurring || !event.recurrenceRule) {
+    return event;
+  }
+
+  const rule = event.recurrenceRule;
+  const instances = generateRecurrenceInstances(event.startTime, event.endTime, {
+    frequency: rule.frequency as "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY",
+    interval: rule.interval,
+    daysOfWeek: rule.daysOfWeek,
+    until: rule.until ?? undefined,
+    count: rule.count ?? undefined,
+    monthlyPattern: (rule.monthlyPattern as "BY_DATE" | "BY_WEEKDAY") ?? "BY_DATE",
+    monthlyDayOfWeek: rule.monthlyDayOfWeek ?? undefined,
+    monthlyWeeks: rule.monthlyWeeks ?? [],
+  });
+
+  const now = new Date();
+  const next = instances.find((i) => i.endTime >= now);
+  if (!next) return event;
+
+  return {
+    ...event,
+    startTime: next.startTime,
+    endTime: next.endTime,
+  };
+}
 
 export async function getUpcomingApprovedEvents(options?: {
   limit?: number;
@@ -245,7 +290,17 @@ export async function getUpcomingApprovedEvents(options?: {
     );
   }
 
-  return filtered.slice(0, limit);
+  const withNext = (
+    filtered as (SeoEventRecord & {
+      isRecurring: boolean;
+      recurrenceRule: Parameters<typeof withNextOccurrence>[0]["recurrenceRule"];
+    })[]
+  )
+    .map(withNextOccurrence)
+    .filter((e) => e.endTime >= now)
+    .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+  return withNext.slice(0, limit);
   } catch (error) {
     console.error("getUpcomingApprovedEvents:", error);
     return [];

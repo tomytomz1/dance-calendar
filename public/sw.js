@@ -3,7 +3,7 @@
 // - API: only GET /api/events is cacheable; all other /api/* are network-only.
 // - Other GET requests (static assets): cache-first with background update.
 
-const CACHE_NAME = 'dance-calendar-v2';
+const CACHE_NAME = 'dance-calendar-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',

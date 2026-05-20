@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";
+import { SiteFooter } from "@/components/layout/site-footer";
+import { getCityIntro } from "@/lib/city-copy";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { UpcomingEventsList } from "@/components/seo/upcoming-events-list";
 import {
@@ -74,8 +76,8 @@ export default async function CityEventsPage({ params }: CityPageProps) {
         <h1 className="text-2xl font-bold mb-2">
           Dance Events in {cityName}, Michigan
         </h1>
-        <p className="text-muted-foreground mb-6">
-          Upcoming socials and dance nights in {cityName} on {SITE_NAME}.
+        <p className="text-muted-foreground mb-4 leading-relaxed">
+          {getCityIntro(cityName, cityParam)}
         </p>
         <UpcomingEventsList
           events={events}
@@ -84,6 +86,7 @@ export default async function CityEventsPage({ params }: CityPageProps) {
           listId="city-events-list"
         />
       </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -61,6 +61,13 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="left" className="w-72">
               <nav className="flex flex-col gap-4 mt-8">
+                <Link
+                  href="/events"
+                  className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
+                >
+                  <Calendar className="h-5 w-5" />
+                  Events
+                </Link>
                 {canCreateEvents && (
                   <Link
                     href="/organizer/events"
@@ -119,6 +126,9 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          <Button asChild size="sm" variant="ghost" className="hidden sm:flex">
+            <Link href="/events">Events</Link>
+          </Button>
           {canCreateEvents && isVerified && (
             <Button asChild size="sm" className="flex">
               <Link

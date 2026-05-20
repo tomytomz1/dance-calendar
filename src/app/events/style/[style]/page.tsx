@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { UpcomingEventsList } from "@/components/seo/upcoming-events-list";
 import {
@@ -85,6 +86,7 @@ export default async function StyleEventsPage({ params }: StylePageProps) {
           listId="style-events-list"
         />
       </main>
+      <SiteFooter />
     </div>
   );
 }

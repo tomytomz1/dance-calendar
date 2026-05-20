@@ -28,8 +28,12 @@ import {
   getEventPath,
   stylePath,
   SITE_NAME,
+  SITE_URL,
   type SeoEventRecord,
 } from "@/lib/seo";
+import { buildGoogleMapsUrl } from "@/lib/maps-url";
+import { EventShareButton } from "@/components/events/event-share-button";
+import { SiteFooter } from "@/components/layout/site-footer";
 
 interface EventPageProps {
   params: Promise<{ id: string }>;
@@ -172,6 +176,13 @@ export default async function EventPage({
   };
 
   const eventPath = getEventPath(event);
+  const shareUrl = `${SITE_URL}${eventPath}`;
+  const mapsUrl = buildGoogleMapsUrl({
+    address: event.address,
+    city: event.city,
+    latitude: event.latitude,
+    longitude: event.longitude,
+  });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -273,6 +284,14 @@ export default async function EventPage({
                   <p className="font-medium">{event.venue}</p>
                   <p className="text-sm text-muted-foreground">{event.address}</p>
                   <p className="text-sm text-muted-foreground">{event.city}</p>
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline mt-1 inline-block"
+                  >
+                    Open in Google Maps
+                  </a>
                 </div>
               </div>
 
@@ -320,20 +339,29 @@ export default async function EventPage({
             </CardContent>
           </Card>
 
-          {safeTicketUrl && (
-            <Button asChild className="w-full h-12">
-              <a
-                href={safeTicketUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Get Tickets
-              </a>
-            </Button>
-          )}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <EventShareButton
+              title={event.title}
+              venue={event.venue}
+              url={shareUrl}
+              className="flex-1"
+            />
+            {safeTicketUrl && (
+              <Button asChild className="flex-1 h-12">
+                <a
+                  href={safeTicketUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Get Tickets
+                </a>
+              </Button>
+            )}
+          </div>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

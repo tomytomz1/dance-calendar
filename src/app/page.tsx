@@ -3,10 +3,13 @@ import type { Metadata } from "next";
 import { addMonths, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { Prisma } from "@prisma/client";
 import { Header } from "@/components/layout/header";
-import { EventCalendarWrapper } from "@/components/calendar/event-calendar-wrapper";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { CalendarLoadError } from "@/components/calendar/calendar-load-error";
+import { HomeHeroCtas } from "@/components/home/home-hero-ctas";
+import { HomeViewTabs } from "@/components/home/home-view-tabs";
+import { EmailSubscribe } from "@/components/home/email-subscribe";
+import { EventCountBanner } from "@/components/seo/event-count-banner";
 import { JsonLdScript } from "@/components/seo/json-ld";
-import { UpcomingEventsList } from "@/components/seo/upcoming-events-list";
 import {
   buildItemListJsonLd,
   getUpcomingApprovedEvents,
@@ -32,20 +35,12 @@ export const metadata: Metadata = buildPublicPageMetadata({
 
 function CalendarSkeleton() {
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)]">
-      <div className="p-4 space-y-3 border-b">
-        <div className="h-7 w-48 bg-muted animate-pulse rounded" />
-        <div className="flex gap-2">
-          <div className="h-10 flex-1 bg-muted animate-pulse rounded" />
-          <div className="h-10 flex-1 bg-muted animate-pulse rounded" />
-        </div>
-      </div>
-      <div className="flex-1 p-4">
-        <div className="grid grid-cols-7 gap-2">
-          {Array.from({ length: 35 }).map((_, i) => (
-            <div key={i} className="h-16 bg-muted animate-pulse rounded" />
-          ))}
-        </div>
+    <div className="flex flex-col min-h-[50vh] p-4">
+      <div className="h-7 w-48 bg-muted animate-pulse rounded mb-4" />
+      <div className="flex-1 grid grid-cols-7 gap-2">
+        {Array.from({ length: 35 }).map((_, i) => (
+          <div key={i} className="h-16 bg-muted animate-pulse rounded" />
+        ))}
       </div>
     </div>
   );
@@ -92,16 +87,10 @@ async function getEvents(): Promise<
       const events = await prisma.event.findMany({
         where: calendarWhere,
         include: {
-          organizer: {
-            select: {
-              name: true,
-            },
-          },
+          organizer: { select: { name: true } },
           recurrenceRule: true,
         },
-        orderBy: {
-          startTime: "asc",
-        },
+        orderBy: { startTime: "asc" },
       });
 
       const calendarEvents: CalendarEvent[] = [];
@@ -193,32 +182,28 @@ export default async function HomePage() {
         )}
       />
       <Header />
-      <main className="flex-1">
-        <Suspense fallback={<CalendarSkeleton />}>
-          <div className="h-[calc(100vh-56px)]">
-            {error ? (
-              <CalendarLoadError />
-            ) : (
-              <EventCalendarWrapper events={events} />
-            )}
-          </div>
-        </Suspense>
-        <div className="container mx-auto px-4 max-w-3xl">
-          <h1 className="text-2xl font-bold pt-8 pb-2">
-            Dance Events in Michigan
-          </h1>
-          <p className="text-muted-foreground mb-4">
-            Browse salsa, bachata, kizomba, swing, and ballroom socials on the
-            calendar above, or explore upcoming listings below.
+      <HomeHeroCtas />
+      <main className="flex-1 flex flex-col">
+        <div className="container mx-auto px-4 pt-4 max-w-3xl">
+          <h1 className="text-2xl font-bold">Dance Events in Michigan</h1>
+          <p className="text-muted-foreground mt-1 mb-2">
+            Browse salsa, bachata, kizomba, swing, and ballroom socials.
           </p>
-          <UpcomingEventsList
-            events={seoEvents}
-            heading="Upcoming events"
-            showHubLinks
-            listId="home-upcoming-events"
+          <EventCountBanner count={seoEvents.length} />
+        </div>
+        <Suspense fallback={<CalendarSkeleton />}>
+          <HomeViewTabs
+            calendarEvents={events}
+            listEvents={seoEvents}
+            calendarError={error}
+            CalendarErrorComponent={CalendarLoadError}
           />
+        </Suspense>
+        <div className="container mx-auto px-4 max-w-3xl pb-8">
+          <EmailSubscribe />
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }
