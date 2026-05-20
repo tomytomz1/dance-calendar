@@ -89,8 +89,16 @@ export function HomeViewTabs({
     );
   }
 
+  const handleTabChange = (value: string) => {
+    if (value === "list" || value === "calendar") setTab(value);
+  };
+
   return (
-    <Tabs value={tab} onValueChange={setTab} className="flex flex-col flex-1 w-full">
+    <Tabs
+      value={tab}
+      onValueChange={handleTabChange}
+      className="flex flex-col flex-1 w-full"
+    >
       <div className="px-4 pt-3 flex justify-center">
         <TabsList
           className="grid h-11 w-full max-w-sm grid-cols-2 gap-1 p-1"
