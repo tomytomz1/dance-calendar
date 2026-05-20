@@ -27,17 +27,7 @@ export function HomeHero({
         </p>
 
         <div className="mt-3">
-          <EventCountBanner
-            count={eventCount}
-            citySummary={
-              topCities.length > 0
-                ? topCities
-                    .slice(0, 3)
-                    .map((c) => `${cityCounts[c] ?? 0} in ${c}`)
-                    .join(" · ")
-                : undefined
-            }
-          />
+          <EventCountBanner count={eventCount} />
         </div>
 
         {topCities.length > 0 && (
