@@ -2,12 +2,12 @@
 
 ## Analytics (implemented)
 
-Set **one** of:
+**Vercel Web Analytics** — `<Analytics />` from `@vercel/analytics/next` in [`src/app/layout.tsx`](../src/app/layout.tsx) per [Vercel quickstart](https://vercel.com/docs/analytics/quickstart). Enable in the Vercel project dashboard (Analytics → Web Analytics → Enable). No env var required.
+
+Optional third-party (set **one** if desired):
 
 - `NEXT_PUBLIC_PLAUSIBLE_DOMAIN=michigandance.life` — Plausible (privacy-friendly)
 - `NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXX` — Google Analytics 4
-
-Component: [`src/components/analytics.tsx`](../src/components/analytics.tsx)
 
 ## Error monitoring (recommended)
 

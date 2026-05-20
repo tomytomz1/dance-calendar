@@ -31,8 +31,10 @@ export default function PrivacyPage() {
       </p>
       <h2>Analytics</h2>
       <p>
-        We may use privacy-friendly analytics (e.g. Plausible) or Google
-        Analytics if configured. You can use browser extensions to opt out.
+        We use Vercel Web Analytics on our hosted site and may also use
+        privacy-friendly analytics (e.g. Plausible) or Google Analytics if
+        configured. You can use browser extensions to opt out of third-party
+        trackers.
       </p>
       <h2>Email</h2>
       <p>

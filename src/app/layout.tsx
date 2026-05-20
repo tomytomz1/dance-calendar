@@ -3,7 +3,8 @@ import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
-import { Analytics } from "@/components/analytics";
+import { Analytics } from "@vercel/analytics/next";
+import { ThirdPartyAnalytics } from "@/components/analytics";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import {
   SITE_NAME,
@@ -107,6 +108,7 @@ export default function RootLayout({
           <Toaster position="top-center" richColors />
           <ServiceWorkerRegister />
           <Analytics />
+          <ThirdPartyAnalytics />
         </SessionProvider>
       </body>
     </html>
