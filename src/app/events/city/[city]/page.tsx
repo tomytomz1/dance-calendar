@@ -10,9 +10,9 @@ import {
   buildItemListJsonLd,
   findCityBySlug,
   getDistinctCities,
-  getUpcomingApprovedEvents,
   SITE_NAME,
 } from "@/lib/seo";
+import { getFilteredHubListEvents } from "@/lib/home-events";
 import { buildPublicPageMetadata } from "@/lib/seo-metadata";
 
 export const revalidate = 600;
@@ -49,10 +49,7 @@ export default async function CityEventsPage({ params }: CityPageProps) {
     notFound();
   }
 
-  const events = await getUpcomingApprovedEvents({
-    citySlugParam: cityParam,
-    limit: 200,
-  });
+  const events = await getFilteredHubListEvents({ citySlug: cityParam });
 
   return (
     <div className="min-h-screen flex flex-col">

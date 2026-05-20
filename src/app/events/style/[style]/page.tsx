@@ -9,9 +9,9 @@ import {
   buildItemListJsonLd,
   findStyleBySlug,
   getDistinctDanceStyles,
-  getUpcomingApprovedEvents,
   SITE_NAME,
 } from "@/lib/seo";
+import { getFilteredHubListEvents } from "@/lib/home-events";
 import { buildPublicPageMetadata } from "@/lib/seo-metadata";
 
 export const revalidate = 600;
@@ -48,10 +48,7 @@ export default async function StyleEventsPage({ params }: StylePageProps) {
     notFound();
   }
 
-  const events = await getUpcomingApprovedEvents({
-    styleSlugParam: styleParam,
-    limit: 200,
-  });
+  const events = await getFilteredHubListEvents({ styleSlug: styleParam });
 
   return (
     <div className="min-h-screen flex flex-col">

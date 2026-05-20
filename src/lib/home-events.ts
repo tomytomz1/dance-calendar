@@ -1,9 +1,10 @@
+import { cache } from "react";
 import { addMonths, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateRecurrenceInstances } from "@/lib/recurrence";
 import { tryDb } from "@/lib/with-db-retry";
-import type { SeoEventRecord } from "@/lib/seo";
+import { citySlug, styleSlug, type SeoEventRecord } from "@/lib/seo";
 import type { CalendarEvent } from "@/lib/types";
 
 const seoEventSelect = {
@@ -185,3 +186,42 @@ export async function getHomePageEvents(): Promise<HomePageEventsResult> {
 
   return result.data;
 }
+
+/** Upcoming list window — matches homepage list tab and city/style hub counts. */
+function filterUpcomingListWindow(events: HomeListEventRecord[]): HomeListEventRecord[] {
+  const now = new Date();
+  const listRangeEnd = endOfDay(addMonths(now, 1));
+  return events.filter(
+    (e) => e.endTime >= now && e.startTime <= listRangeEnd
+  );
+}
+
+/**
+ * City/style hub pages use the same expanded instances as the homepage so
+ * chip counts match the listings (recurring events included).
+ */
+export const getFilteredHubListEvents = cache(
+  async (options: {
+    citySlug?: string;
+    styleSlug?: string;
+  }): Promise<HomeListEventRecord[]> => {
+    const { listEvents, error } = await getHomePageEvents();
+    if (error) return [];
+
+    let filtered = filterUpcomingListWindow(listEvents);
+
+    if (options.citySlug) {
+      filtered = filtered.filter(
+        (e) => citySlug(e.city) === options.citySlug
+      );
+    }
+
+    if (options.styleSlug) {
+      filtered = filtered.filter((e) =>
+        e.danceStyles.some((s) => styleSlug(s) === options.styleSlug)
+      );
+    }
+
+    return filtered;
+  }
+);
