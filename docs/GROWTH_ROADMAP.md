@@ -16,8 +16,7 @@
 | Date | IDs | Note |
 |------|-----|------|
 | 2026-05-20 | P1-04–P1-16, P2-01–P2-10, P3-01–P3-06, P3-12, D-02 | Code implementation batch (see commit) |
-| | P1-01, P1-02, P1-03 | Manual: Vercel redirect + env + Search Console |
-| | P2-11–P2-13 | Manual: GBP, outreach, social playbook |
+| 2026-05-20 | P1-01–P1-03 | Verified: apex Production, www→apex redirect, `NEXT_PUBLIC_SITE_URL` in Vercel, GSC `/sitemap.xml` Success (60 pages) |
 
 ---
 
@@ -25,9 +24,9 @@
 
 ### Infrastructure and SEO hygiene
 
-- [ ] **P1-01** Vercel: redirect `www` → `https://michigandance.life` ([`vercel.json`](../vercel.json) redirects added — confirm in Vercel dashboard)
-- [ ] **P1-02** `NEXT_PUBLIC_SITE_URL=https://michigandance.life` in Vercel ([`.env.example`](../.env.example))
-- [ ] **P1-03** Search Console: sitemap Success (manual)
+- [x] **P1-01** Vercel: redirect `www` → `https://michigandance.life` ([`vercel.json`](../vercel.json) redirects added — confirm in Vercel dashboard)
+- [x] **P1-02** `NEXT_PUBLIC_SITE_URL=https://michigandance.life` in Vercel ([`.env.example`](../.env.example))
+- [x] **P1-03** Search Console: sitemap Success (manual)
 
 ### Brand consistency
 
