@@ -22,8 +22,12 @@ export function ThirdPartyAnalytics() {
 
     const analyticsWindow = window as AnalyticsWindow;
     analyticsWindow.dataLayer = analyticsWindow.dataLayer || [];
-    analyticsWindow.gtag = (...args: unknown[]) => {
-      analyticsWindow.dataLayer?.push(args);
+    // gtag.js only processes dataLayer entries that are `arguments` objects.
+    // A rest-parameter array is silently ignored, so config never runs and
+    // no page_view is sent even though gtag.js loads.
+    analyticsWindow.gtag = function gtag() {
+      // eslint-disable-next-line prefer-rest-params
+      analyticsWindow.dataLayer?.push(arguments);
     };
     analyticsWindow.gtag("js", new Date());
     analyticsWindow.gtag("config", gaId, {
