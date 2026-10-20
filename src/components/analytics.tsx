@@ -1,36 +1,51 @@
+"use client";
+
+import { useEffect } from "react";
 import Script from "next/script";
 
-/** Optional Plausible or GA4 when env vars are set. */
+/** Public-site analytics: never tag preview deployments or non-production hosts. */
+const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+const productionHosts = new Set(["michigandance.life", "www.michigandance.life"]);
+
+type AnalyticsWindow = Window & {
+  dataLayer?: unknown[];
+  gtag?: (...args: unknown[]) => void;
+};
+
+/** Optional Plausible or GA4. Scripts are enabled only on the public production domain. */
 export function ThirdPartyAnalytics() {
-  const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
-  const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  useEffect(() => {
+    if (!gaId || process.env.NODE_ENV !== "production") return;
+    if (!productionHosts.has(window.location.hostname)) return;
+    if (document.getElementById("michigan-dance-ga4")) return;
+
+    const analyticsWindow = window as AnalyticsWindow;
+    analyticsWindow.dataLayer = analyticsWindow.dataLayer || [];
+    analyticsWindow.gtag = (...args: unknown[]) => {
+      analyticsWindow.dataLayer?.push(args);
+    };
+    analyticsWindow.gtag("js", new Date());
+    analyticsWindow.gtag("config", gaId, {
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false,
+    });
+
+    const script = document.createElement("script");
+    script.id = "michigan-dance-ga4";
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`;
+    document.head.appendChild(script);
+  }, []);
+
+  if (!plausibleDomain || process.env.NODE_ENV !== "production") return null;
 
   return (
-    <>
-      {plausibleDomain ? (
-        <Script
-          defer
-          data-domain={plausibleDomain}
-          src="https://plausible.io/js/script.js"
-          strategy="afterInteractive"
-        />
-      ) : null}
-      {gaId ? (
-        <>
-          <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-            strategy="afterInteractive"
-          />
-          <Script id="ga4" strategy="afterInteractive">
-            {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${gaId}');
-          `}
-          </Script>
-        </>
-      ) : null}
-    </>
+    <Script
+      defer
+      data-domain={plausibleDomain}
+      src="https://plausible.io/js/script.js"
+      strategy="afterInteractive"
+    />
   );
 }
