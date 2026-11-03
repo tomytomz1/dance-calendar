@@ -88,6 +88,8 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 4. Deploy!
 
+Production builds (`VERCEL_ENV=production`) run `prisma db push` before `next build` (see `scripts/db-push-production.js`), so new columns and tables in `prisma/schema.prisma` reach the database automatically. Preview builds skip it because they share the production database. A change that would lose data fails the build instead of being applied; run it manually after checking the data.
+
 ## Creating an Admin User
 
 After deployment, create your first admin user:
