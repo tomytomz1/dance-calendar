@@ -8,7 +8,7 @@
  * make `prisma db push` exit non-zero, which fails the build and keeps the
  * current deployment live. Apply those by hand after checking the data.
  */
-const { execSync } = require("child_process");
+import { execSync } from "node:child_process";
 
 if (process.env.VERCEL_ENV !== "production") {
   console.log(

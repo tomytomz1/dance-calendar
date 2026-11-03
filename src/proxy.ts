@@ -10,7 +10,7 @@ function requiresAuth(pathname: string): boolean {
   );
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const res = NextResponse.next();
 
   res.headers.set("X-Content-Type-Options", "nosniff");
@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
 
   const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
   if (!secret) {
-    console.error("middleware: NEXTAUTH_SECRET/AUTH_SECRET is not set");
+    console.error("proxy: NEXTAUTH_SECRET/AUTH_SECRET is not set");
     return res;
   }
 

@@ -44,7 +44,7 @@ function LoginForm() {
       } else if (result?.ok) {
         toast.success("Welcome back!");
         // Full navigation so the session cookie from sign-in is always sent on the
-        // next request (middleware + RSC). client router.push can race cookie commit.
+        // next request (proxy + RSC). client router.push can race cookie commit.
         window.location.assign(callbackUrl);
       } else {
         toast.error("Sign in did not complete. Please try again.");
