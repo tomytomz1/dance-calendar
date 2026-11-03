@@ -287,7 +287,7 @@ export function EventForm({ event, mode }: EventFormProps) {
 
       toast.success(
         mode === "create"
-          ? "Event created! It will be visible after admin approval."
+          ? "Event published! It's now live on the calendar."
           : "Event updated successfully!"
       );
       router.push("/organizer/events");
