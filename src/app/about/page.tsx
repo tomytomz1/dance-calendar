@@ -23,13 +23,15 @@ export default function AboutPage() {
       </p>
       <h2>For organizers</h2>
       <p>
-        Register as an organizer, submit your event, and after admin approval
-        your listing appears on the public calendar and in search engines.
+        Register as an organizer, and once your account is approved, every
+        event you submit appears on the public calendar and in search engines
+        right away.
       </p>
       <h2>Quality</h2>
       <p>
-        Every public event is reviewed before it goes live, so dancers see
-        accurate dates, venues, and links.
+        Every organizer account is reviewed before it can post, so dancers see
+        events from real local organizers with accurate dates, venues, and
+        links.
       </p>
     </LegalPageShell>
   );

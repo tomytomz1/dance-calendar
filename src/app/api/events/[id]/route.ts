@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
 import { generateUniqueEventSlug } from "@/lib/slug";
+import { organizerEditStatus } from "@/lib/event-status";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
 import { z } from "zod";
@@ -117,7 +118,7 @@ export async function PATCH(
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { organizerId: true },
+      select: { organizerId: true, status: true },
     });
 
     if (!event) {
@@ -142,11 +143,13 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateEventSchema.parse(body);
 
-    if (!isAdmin && validatedData.status === "APPROVED") {
-      delete validatedData.status;
-    }
+    // Organizer edits stay published (no admin re-review); admins set any status.
+    const nextStatus = isAdmin
+      ? validatedData.status
+      : organizerEditStatus(validatedData.status, event.status);
 
     const { recurrence, ...eventData } = validatedData;
+    delete eventData.status; // applied via nextStatus below
 
     let slug: string | null | undefined;
     if (eventData.title) {
@@ -158,7 +161,7 @@ export async function PATCH(
       data: {
         ...eventData,
         ...(slug !== undefined && { slug }),
-        ...(isOwner && !isAdmin && { status: "PENDING_APPROVAL" }),
+        ...(nextStatus !== undefined && { status: nextStatus }),
         ...(recurrence && {
           recurrenceRule: {
             upsert: {
@@ -200,7 +203,8 @@ export async function PATCH(
     const shouldRegenerateInstances =
       updatedEvent.isRecurring &&
       updatedEvent.recurrenceRule &&
-      (validatedData.status === "APPROVED" || !!recurrence);
+      ((nextStatus === "APPROVED" && event.status !== "APPROVED") ||
+        !!recurrence);
 
     if (shouldRegenerateInstances) {
       try {

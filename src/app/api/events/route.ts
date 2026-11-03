@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent } from "@/lib/recurrence";
 import { generateUniqueEventSlug } from "@/lib/slug";
+import { NEW_EVENT_STATUS } from "@/lib/event-status";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
@@ -170,7 +171,7 @@ export async function POST(request: Request) {
         ticketUrl: validatedData.ticketUrl || null,
         price: validatedData.price,
         isRecurring: validatedData.isRecurring,
-        status: session.user.role === "ADMIN" ? "APPROVED" : "PENDING_APPROVAL",
+        status: NEW_EVENT_STATUS,
         organizerId: session.user.id,
         ...(validatedData.isRecurring &&
           validatedData.recurrence && {
