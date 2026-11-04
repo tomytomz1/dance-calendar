@@ -501,6 +501,7 @@ export default function AdminPage() {
                       <div className="flex gap-2">
                         <Button
                           size="sm"
+                          aria-label={`Approve organizer ${organizer.name || organizer.email}`}
                           onClick={() => handleApproveOrganizer(organizer.id)}
                         >
                           <Check className="h-4 w-4" />
@@ -508,6 +509,7 @@ export default function AdminPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          aria-label={`Reject organizer ${organizer.name || organizer.email}`}
                           onClick={() => handleRejectOrganizer(organizer.id)}
                         >
                           <X className="h-4 w-4" />
@@ -515,6 +517,7 @@ export default function AdminPage() {
                         <Button
                           size="sm"
                           variant="destructive"
+                          aria-label={`Delete organizer ${organizer.name || organizer.email}`}
                           onClick={() => setDeleteOrgTarget(organizer)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -555,6 +558,7 @@ export default function AdminPage() {
                         <Button
                           size="sm"
                           variant="destructive"
+                          aria-label={`Delete organizer ${organizer.name || organizer.email}`}
                           onClick={() => setDeleteOrgTarget(organizer)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -622,6 +626,7 @@ export default function AdminPage() {
                     <Button
                       size="sm"
                       variant="destructive"
+                      aria-label={`Delete dancer ${dancer.name || dancer.email}`}
                       onClick={() => setDeleteDancerTarget(dancer)}
                     >
                       <Trash2 className="h-4 w-4" />

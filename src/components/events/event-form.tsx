@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -124,6 +124,7 @@ interface EventFormProps {
 }
 
 export function EventForm({ event, mode }: EventFormProps) {
+  const timeControlId = useId();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasConflicts, setHasConflicts] = useState(false);
@@ -419,7 +420,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent aria-label="Choose start date" className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
@@ -446,8 +447,8 @@ export function EventForm({ event, mode }: EventFormProps) {
                   );
                   return (
                     <FormItem>
-                      <FormLabel>Start Time</FormLabel>
-                      <div className="flex gap-2">
+                      <FormLabel htmlFor={`${timeControlId}-startTime-hour`}>Start Time</FormLabel>
+                      <div className="flex min-w-0 gap-2">
                         <Select
                           value={String(hour)}
                           onValueChange={(v) =>
@@ -456,12 +457,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             )
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 flex-1">
+                          <FormControl id={`${timeControlId}-startTime-hour`}>
+                            <SelectTrigger aria-label="Start hour" className="h-12 min-w-0 flex-1">
                               <SelectValue placeholder="Hour" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {HOUR_OPTIONS.map((h) => (
                               <SelectItem key={h} value={String(h)}>
                                 {h}
@@ -475,12 +476,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(toHHmm(hour, v, period))
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 flex-1">
+                          <FormControl id={`${timeControlId}-startTime-minute`}>
+                            <SelectTrigger aria-label="Start minute" className="h-12 min-w-0 flex-1">
                               <SelectValue placeholder="Min" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {MINUTE_OPTIONS.map((m) => (
                               <SelectItem key={m} value={m}>
                                 {m}
@@ -494,12 +495,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(toHHmm(hour, minute, v))
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 w-24">
+                          <FormControl id={`${timeControlId}-startTime-period`}>
+                            <SelectTrigger aria-label="Start AM/PM" className="h-12 min-w-0 w-20 sm:w-24">
                               <SelectValue placeholder="AM/PM" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {PERIOD_OPTIONS.map((p) => (
                               <SelectItem key={p} value={p}>
                                 {p}
@@ -539,7 +540,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent aria-label="Choose end date" className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
@@ -566,8 +567,8 @@ export function EventForm({ event, mode }: EventFormProps) {
                   );
                   return (
                     <FormItem>
-                      <FormLabel>End Time</FormLabel>
-                      <div className="flex gap-2">
+                      <FormLabel htmlFor={`${timeControlId}-endTime-hour`}>End Time</FormLabel>
+                      <div className="flex min-w-0 gap-2">
                         <Select
                           value={String(hour)}
                           onValueChange={(v) =>
@@ -576,12 +577,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             )
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 flex-1">
+                          <FormControl id={`${timeControlId}-endTime-hour`}>
+                            <SelectTrigger aria-label="End hour" className="h-12 min-w-0 flex-1">
                               <SelectValue placeholder="Hour" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {HOUR_OPTIONS.map((h) => (
                               <SelectItem key={h} value={String(h)}>
                                 {h}
@@ -595,12 +596,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(toHHmm(hour, v, period))
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 flex-1">
+                          <FormControl id={`${timeControlId}-endTime-minute`}>
+                            <SelectTrigger aria-label="End minute" className="h-12 min-w-0 flex-1">
                               <SelectValue placeholder="Min" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {MINUTE_OPTIONS.map((m) => (
                               <SelectItem key={m} value={m}>
                                 {m}
@@ -614,12 +615,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(toHHmm(hour, minute, v))
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 w-24">
+                          <FormControl id={`${timeControlId}-endTime-period`}>
+                            <SelectTrigger aria-label="End AM/PM" className="h-12 min-w-0 w-20 sm:w-24">
                               <SelectValue placeholder="AM/PM" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {PERIOD_OPTIONS.map((p) => (
                               <SelectItem key={p} value={p}>
                                 {p}
@@ -663,7 +664,7 @@ export function EventForm({ event, mode }: EventFormProps) {
             />
 
             {isRecurring && (
-              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+              <div className="min-w-0 space-y-4 p-4 bg-muted/50 rounded-lg">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -676,11 +677,11 @@ export function EventForm({ event, mode }: EventFormProps) {
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger className="h-12">
+                            <SelectTrigger className="h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                               <SelectValue placeholder="Select frequency" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {Object.entries(RECURRENCE_FREQUENCY_LABELS).map(
                               ([value, label]) => (
                                 <SelectItem key={value} value={value}>
@@ -726,7 +727,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent aria-label="Choose recurrence end date" className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
                             <Calendar
                               mode="single"
                               selected={field.value}
@@ -765,7 +766,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                 </div>
 
                 {recurrenceFrequency === "MONTHLY" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4 bg-background">
+                  <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4 bg-background">
                     <FormField
                       control={form.control}
                       name="monthlyPattern"
@@ -777,11 +778,11 @@ export function EventForm({ event, mode }: EventFormProps) {
                             defaultValue={field.value || "BY_DATE"}
                           >
                             <FormControl>
-                              <SelectTrigger className="h-12">
+                              <SelectTrigger className="h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                               <SelectItem value="BY_DATE">
                                 Same date every month
                               </SelectItem>
@@ -818,11 +819,11 @@ export function EventForm({ event, mode }: EventFormProps) {
                                 }
                               >
                                 <FormControl>
-                                  <SelectTrigger className="h-12">
+                                  <SelectTrigger className="h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                                     <SelectValue placeholder="Select day" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                                   <SelectItem value="0">Sunday</SelectItem>
                                   <SelectItem value="1">Monday</SelectItem>
                                   <SelectItem value="2">Tuesday</SelectItem>
