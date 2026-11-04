@@ -20,7 +20,16 @@ export interface RecurrenceConfig {
   monthlyPattern?: "BY_DATE" | "BY_WEEKDAY";
   monthlyDayOfWeek?: number;
   monthlyWeeks?: number[];
+  /**
+   * For open-ended series (no `until`/`count`): generate occurrences up to this
+   * date instead of only the first 12 months after the series started, so
+   * long-running weekly/monthly events keep appearing.
+   */
+  horizon?: Date;
 }
+
+/** Safety cap on occurrences when a horizon is given. */
+const MAX_HORIZON_INSTANCES = 1000;
 
 export interface GeneratedInstance {
   startTime: Date;
@@ -41,8 +50,13 @@ export function generateRecurrenceInstances(
 
   const hasValidUntil =
     config.until && isAfter(config.until, startTime);
-  const maxDate = hasValidUntil ? (config.until as Date) : addMonths(startTime, 12);
-  const maxCount = config.count || maxInstances;
+  const openEndedLimit =
+    config.horizon && isAfter(config.horizon, startTime)
+      ? config.horizon
+      : addMonths(startTime, 12);
+  const maxDate = hasValidUntil ? (config.until as Date) : openEndedLimit;
+  const maxCount =
+    config.count || (config.horizon ? MAX_HORIZON_INSTANCES : maxInstances);
 
   // Special handling for advanced monthly patterns (e.g. 2nd Friday, last Sunday)
   if (

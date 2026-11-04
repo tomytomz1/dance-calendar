@@ -24,6 +24,8 @@ export type CalendarEvent = {
   slug?: string;
   /** Unique key for React when event is an expanded recurring instance */
   instanceKey?: string;
+  /** ISO instant of this occurrence when expanded from a recurring event */
+  occurrenceStart?: string;
 };
 
 export const DANCE_STYLES = [

@@ -1,9 +1,11 @@
 import { cache } from "react";
+import { addMonths } from "date-fns";
 import { slugify } from "@/lib/slug";
 import { safeHttpOrHttpsUrl } from "@/lib/safe-external-url";
 import { prisma } from "@/lib/prisma";
 import { generateRecurrenceInstances } from "@/lib/recurrence";
-import { tryDb, withDbRetry } from "@/lib/with-db-retry";
+import { withDbRetry } from "@/lib/with-db-retry";
+import { normalizeCityName } from "@/lib/city-name";
 
 export const SITE_NAME = "Michigan Dance Life";
 
@@ -45,10 +47,47 @@ export function getEventPath(event: { id: string; slug: string | null }): string
   return `/event/${event.slug ?? event.id}`;
 }
 
+/**
+ * Link to one occurrence of an event. Recurring occurrences carry
+ * `?instance=<ISO start>` so the detail page shows that date; the canonical URL
+ * stays the plain event path.
+ */
+export function getEventOccurrencePath(
+  event: { id: string; slug: string | null | undefined },
+  occurrenceStart?: Date | string | null
+): string {
+  const path = getEventPath({ id: event.id, slug: event.slug ?? null });
+  if (!occurrenceStart) return path;
+  const iso =
+    occurrenceStart instanceof Date ? occurrenceStart.toISOString() : occurrenceStart;
+  return `${path}?instance=${encodeURIComponent(iso)}`;
+}
+
+/** Link for a list record: recurring rows (instanceKey) link to their occurrence. */
+export function getListEventHref(
+  event: Pick<SeoEventRecord, "id" | "slug" | "startTime" | "instanceKey">
+): string {
+  return getEventOccurrencePath(event, event.instanceKey ? event.startTime : null);
+}
+
 export { slugify };
 
+export { normalizeCityName };
+
+/** City URLs use the normalized name, so "Troy, MI 48083" and "Troy" share /events/city/troy. */
 export function citySlug(city: string): string {
-  return slugify(city);
+  return slugify(normalizeCityName(city));
+}
+
+/** Unique normalized city names (first spelling wins), sorted. */
+function uniqueCities(raw: (string | null | undefined)[]): string[] {
+  const bySlug = new Map<string, string>();
+  for (const value of raw) {
+    const name = normalizeCityName(value);
+    const slug = name ? citySlug(name) : "";
+    if (slug && !bySlug.has(slug)) bySlug.set(slug, name);
+  }
+  return [...bySlug.values()].sort((a, b) => a.localeCompare(b));
 }
 
 export function styleSlug(style: string): string {
@@ -93,7 +132,7 @@ export function buildEventJsonLd(
     name: event.title,
     description:
       event.description?.trim() ||
-      `${event.title} at ${event.venue} in ${event.city}, Michigan.`,
+      `${event.title} at ${event.venue} in ${normalizeCityName(event.city)}, Michigan.`,
     startDate: start.toISOString(),
     endDate: end.toISOString(),
     eventStatus: mapEventStatus(event.status),
@@ -104,7 +143,7 @@ export function buildEventJsonLd(
       address: {
         "@type": "PostalAddress",
         streetAddress: event.address,
-        addressLocality: event.city,
+        addressLocality: normalizeCityName(event.city),
         addressRegion: "MI",
         addressCountry: "US",
       },
@@ -139,7 +178,7 @@ export function buildOrganizationJsonLd() {
     "@type": "Organization",
     name: SITE_NAME,
     url: SITE_URL,
-    logo: absoluteUrl("/michigandancelife-header-logo.png"),
+    logo: absoluteUrl("/icons/icon-512x512.png"),
     description:
       "Discover salsa, bachata, swing, ballroom, and social dance events across Michigan.",
     areaServed: {
@@ -248,6 +287,7 @@ function withNextOccurrence(
     monthlyPattern: (rule.monthlyPattern as "BY_DATE" | "BY_WEEKDAY") ?? "BY_DATE",
     monthlyDayOfWeek: rule.monthlyDayOfWeek ?? undefined,
     monthlyWeeks: rule.monthlyWeeks ?? [],
+    horizon: addMonths(new Date(), 13),
   });
 
   const now = new Date();
@@ -309,11 +349,7 @@ async function queryUpcomingApprovedEvents(options?: {
 export function deriveCitiesFromEvents(
   events: Pick<SeoEventRecord, "city">[]
 ): string[] {
-  const set = new Set<string>();
-  for (const e of events) {
-    if (e.city?.trim()) set.add(e.city.trim());
-  }
-  return [...set].sort((a, b) => a.localeCompare(b));
+  return uniqueCities(events.map((e) => e.city));
 }
 
 export function deriveDanceStylesFromEvents(
@@ -349,7 +385,7 @@ export const getDistinctCities = cache(async (): Promise<string[]> =>
       distinct: ["city"],
       orderBy: { city: "asc" },
     });
-    return rows.map((r) => r.city).filter(Boolean);
+    return uniqueCities(rows.map((r) => r.city));
   }, [])
 );
 
