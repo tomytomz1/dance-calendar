@@ -1,9 +1,10 @@
 import { ImageResponse } from "next/og";
 import { formatEventDateForMeta, normalizeCityName } from "@/lib/seo";
+import { normalizeVenueName } from "@/lib/city-name";
 import { getApprovedEventByIdOrSlug, resolveEventOccurrence } from "@/lib/event-detail";
 import { formatInSiteTimeZone } from "@/lib/timezone";
 
-export const alt = "Dance event";
+export const alt = "Michigan Dance Life event details";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -80,7 +81,7 @@ export default async function EventOpenGraphImage({ params }: Props) {
           <div style={{ width: 160, height: 7, borderRadius: 10, background: "#F46157", marginBottom: 24 }} />
           <div style={{ display: "flex", fontSize: 32, fontWeight: 700, marginBottom: 10 }}>{dateLabel}</div>
           <div style={{ display: "flex", fontSize: 28, opacity: 0.9 }}>
-            {event.venue} · {normalizeCityName(event.city)}, MI
+            {normalizeVenueName(event.venue)} · {normalizeCityName(event.city)}, MI
           </div>
           {styles ? (
             <div style={{ display: "flex", fontSize: 24, marginTop: 16, color: "#FFB3AD" }}>{styles}</div>

@@ -29,7 +29,7 @@ export function SelectedDayAgenda({
   const dayEnd = endOfDay(date).getTime();
   const nextEvent = allEvents?.find((event) => new Date(event.start).getTime() > dayEnd);
   return (
-    <aside
+    <section
       className="rounded-2xl border border-[#87546E] bg-[linear-gradient(150deg,#42273B,#1A1522_55%)] p-4 sm:p-5"
       aria-labelledby="selected-date-heading"
     >
@@ -73,6 +73,6 @@ export function SelectedDayAgenda({
         <MapPin size={14} className="shrink-0 text-[#FF8179]" aria-hidden="true" /> Times are Michigan time.
         Details are provided by event organizers.
       </p>
-    </aside>
+    </section>
   );
 }
