@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { RefObject } from "react";
 import { format } from "date-fns";
 import {
   Sheet,
@@ -19,6 +20,7 @@ interface EventDetailSheetProps {
   event: CalendarEvent | null;
   isOpen: boolean;
   onClose: () => void;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }
 
 function eventHref(event: CalendarEvent): string {
@@ -28,7 +30,7 @@ function eventHref(event: CalendarEvent): string {
     : path;
 }
 
-export function EventDetailSheet({ event, isOpen, onClose }: EventDetailSheetProps) {
+export function EventDetailSheet({ event, isOpen, onClose, returnFocusRef }: EventDetailSheetProps) {
   if (!event) return null;
 
   const eventPath = eventHref(event);
@@ -66,6 +68,13 @@ export function EventDetailSheet({ event, isOpen, onClose }: EventDetailSheetPro
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
+        onCloseAutoFocus={(closeEvent) => {
+          const trigger = returnFocusRef?.current;
+          if (trigger?.isConnected && trigger !== document.body) {
+            closeEvent.preventDefault();
+            trigger.focus();
+          }
+        }}
         side="bottom"
         className="mx-auto max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-t-3xl border-[#755572] bg-[#1D1726] text-[#FFF1E5]"
       >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { addWeeks, addMonths, subWeeks, subMonths } from "date-fns";
 import { CalendarHeader } from "./calendar-header";
 import { WeekView } from "./week-view";
@@ -18,6 +18,7 @@ interface EventCalendarProps {
 }
 
 export function EventCalendar({ events: rawEvents, initialDate }: EventCalendarProps) {
+  const sheetTriggerRef = useRef<HTMLElement | null>(null);
   // Bucket and label events in Michigan time for every visitor, wherever their
   // device clock is set. The original instant is kept in occurrenceStart.
   const events = useMemo(
@@ -59,6 +60,7 @@ export function EventCalendar({ events: rawEvents, initialDate }: EventCalendarP
   }, []);
 
   const handleEventClick = useCallback((event: CalendarEvent) => {
+    sheetTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setSelectedEvent(event);
     setIsSheetOpen(true);
   }, []);
@@ -135,6 +137,7 @@ export function EventCalendar({ events: rawEvents, initialDate }: EventCalendarP
 
       <EventDetailSheet
         event={selectedEvent}
+        returnFocusRef={sheetTriggerRef}
         isOpen={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
       />
