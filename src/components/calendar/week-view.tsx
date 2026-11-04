@@ -84,7 +84,7 @@ export function WeekView({
                       onClick={() => onDateSelect(day)}
                       aria-pressed={selected}
                       aria-label={
-                        format(day, "EEEE, MMMM d, yyyy") +
+                        format(day, "EEE d") + ", " + format(day, "EEEE, MMMM d, yyyy") +
                         (today ? ", today" : "") +
                         (dayEvents.length
                           ? `, ${dayEvents.length} ${dayEvents.length === 1 ? "event" : "events"}`

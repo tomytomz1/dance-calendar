@@ -82,6 +82,7 @@ await check('Real browser create form validates required values and saves a Mich
   await page.getByRole('button', { name: 'Start Date', exact: true }).click(); await page.getByRole('dialog', { name: 'Choose start date' }).getByRole('button', { name: /November 13/ }).click();
   await page.getByRole('button', { name: 'End Date', exact: true }).click(); await page.getByRole('dialog', { name: 'Choose end date' }).getByRole('button', { name: /November 14/ }).click();
   await select(page, 'Start hour', '9'); await select(page, 'Start minute', '20'); await select(page, 'Start AM/PM', 'PM'); await select(page, 'End hour', '1'); await select(page, 'End minute', '00'); await select(page, 'End AM/PM', 'AM');
+  await page.getByLabel('Ticket URL', { exact: true }).fill('javascript:alert(1)'); await page.getByRole('button', { name: 'Create Event', exact: true }).click(); await page.locator('[data-slot="form-message"]').filter({ hasText: 'URL' }).first().waitFor(); await page.getByLabel('Ticket URL', { exact: true }).fill('');
   const r = await submitEvent(page, 'Create Event', '/api/events', 'POST'); assert.equal(r.status(), 201); const e = await r.json(); assert.equal(e.startTime, '2026-11-14T02:20:00.000Z'); assert.equal(e.endTime, '2026-11-14T06:00:00.000Z');
 });
 for (const who of ['other', 'user']) await check(`Real ${who} session cannot mutate foreign events or read admin records`, async () => {
@@ -106,7 +107,10 @@ await check('Crafted login callback cannot navigate away from the application', 
   await page.getByLabel('Email', { exact: true }).fill(`${ids.user}@example.invalid`); await page.getByLabel('Password', { exact: true }).fill(password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.waitForURL(base + '/'); assert.equal(new URL(page.url()).origin, base); await c.close();
 });
 await check('Real admin session approves a synthetic pending organizer', async () => {
-  const c = await context(); await login(c, 'admin', '/admin'); const response = await c.request.post(base + `/api/admin/users/${ids.pending}/approve`); assert.equal(response.status(), 200); assert.equal((await db.user.findUniqueOrThrow({ where: { id: ids.pending } })).verified, true); await c.close();
+  const c = await context(); const page = await login(c, 'admin', '/admin');
+  const approve = page.getByRole('button', { name: 'Approve organizer Synthetic pending', exact: true }); await approve.waitFor();
+  const response = page.waitForResponse(r => r.url().endsWith(`/api/admin/users/${ids.pending}/approve`) && r.request().method() === 'POST'); await approve.click();
+  assert.equal((await response).status(), 200); assert.equal((await db.user.findUniqueOrThrow({ where: { id: ids.pending } })).verified, true); await c.close();
 });
 await check('Unauthenticated HTTP mutation requests cannot change isolated records', async () => {
   const c = await context(); for (const [method, path] of [['patch', '/api/events/releaseqa-hoover-nov'], ['delete', '/api/events/releaseqa-hoover-nov'], ['post', '/api/events/releaseqa-hoover-nov/instances'], ['post', '/api/events']]) assert.equal((await c.request[method](base + path, { data: {} })).status(), 401); await c.close();
@@ -151,6 +155,18 @@ for (const width of [1440, 390]) {
     await authPage.goto(base + path); await authPage.evaluate(() => document.fonts.ready); await authPage.waitForTimeout(700); await authPage.addScriptTag({ path: axePath }); const report = await authPage.evaluate(async () => window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } })); const violations = report.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.slice(0, 5).map(n => ({ target: n.target, summary: n.failureSummary })) })); results.accessibility.push({ width, path, violations, incomplete: report.incomplete.map(v => v.id) }); assert.equal(violations.length, 0, JSON.stringify(violations).slice(0, 2000));
   }); await authContext.close();
 }
+await check('Calendar layout and interaction stay within all nine responsive widths', async () => {
+  const c = await context(); const page = await c.newPage(); await page.goto(base + '/calendar');
+  for (const width of [1920, 1440, 1280, 1024, 800, 768, 390, 375, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    if (width < 768) await page.locator('button[class~="min-h-[52px]"]').first().waitFor(); else await page.locator('div[class~="min-h-[76px]"]').first().waitFor();
+    const metrics = await page.evaluate(() => ({ width: innerWidth, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, desktopAgendas: document.querySelectorAll('#selected-date-heading').length }));
+    assert.equal(metrics.overflow, 0); assert.equal(metrics.desktopAgendas, width < 768 ? 0 : 1);
+    console.log('QA_LAYOUT ' + JSON.stringify(metrics));
+  }
+  await page.setViewportSize({ width: 390, height: 1000 }); await page.locator('button[class~="min-h-[52px]"]').first().waitFor(); await page.screenshot({ path: 'public/qa-calendar-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 }); await page.locator('div[class~="min-h-[76px]"]').first().waitFor(); await page.screenshot({ path: 'public/qa-calendar-desktop.png', fullPage: true }); await c.close();
+});
 await check('Public internal links, sitemap, canonicals and unknown-page behavior', async () => {
   const c = await context(); const paths = new Set(publicPaths); const sitemap = await (await c.request.get(base + '/sitemap.xml')).text();
   for (const match of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) paths.add(new URL(match[1]).pathname);
