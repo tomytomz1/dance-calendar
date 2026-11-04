@@ -25,8 +25,8 @@ await db.recurrenceRule.upsert({ where: { eventId: 'releaseqa-browser-series' },
 const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', '3100'], { env: { ...process.env, PORT: '3100', AUTH_URL: base, NEXTAUTH_URL: base, NEXT_PUBLIC_APP_URL: base, NODE_ENV: 'production' }, stdio: ['ignore', 'pipe', 'pipe'] });
 server.stderr.on('data', chunk => { const text = chunk.toString(); if (/Error|error/.test(text)) results.errors.push(text.slice(0, 600)); });
 for (let i = 0; i < 100; i++) { try { if ((await fetch(base)).ok) break; } catch {} await new Promise(resolve => setTimeout(resolve, 300)); }
-const browser = await chromium.launch({ executablePath: await chromiumBinary.executablePath(), args: chromiumBinary.args, headless: true });
-const check = async (name, fn) => { try { await fn(); results.checks.push({ name, status: 'PASS' }); } catch (error) { results.checks.push({ name, status: 'FAIL', error: error.message.slice(0, 700) }); } };
+const browser = await chromium.launch({ executablePath: await chromiumBinary.executablePath(), args: chromiumBinary.args.filter(arg => arg !== '--single-process'), headless: true });
+const check = async (name, fn) => { let row; try { await fn(); row = { name, status: 'PASS' }; } catch (error) { row = { name, status: 'FAIL', error: error.message.slice(0, 700) }; } results.checks.push(row); console.log('QA_CHECK ' + JSON.stringify(row)); };
 const context = async (options = {}) => {
   const c = await browser.newContext({ viewport: { width: 1440, height: 1000 }, ...options });
   await c.route('**/*', route => { const u = new URL(route.request().url()); return u.origin === base ? route.continue() : route.abort(); });
@@ -79,7 +79,7 @@ for (const who of ['other', 'user']) await check(`Real ${who} session cannot mut
   for (const [method, endpoint, data] of [['patch', '/api/events/releaseqa-hoover-nov', { title: 'Forbidden' }], ['delete', '/api/events/releaseqa-hoover-nov'], ['post', '/api/events/releaseqa-hoover-nov/instances']]) assert.equal((await c.request[method](base + endpoint, { data })).status(), 403);
   assert.equal((await c.request.get(base + '/api/admin/users')).status(), 401); assert.equal((await c.request.post(base + `/api/admin/users/${ids.pending}/approve`)).status(), 401);
   assert.deepEqual(await db.event.findUniqueOrThrow({ where: { id: before.id } }), before);
-  await page.goto(`${base}/admin`); assert.ok(!page.url().endsWith('/admin')); await c.close();
+  await page.goto(`${base}/admin`); await page.waitForURL(url => !url.pathname.endsWith('/admin')); await c.close();
 });
 await check('Real admin session approves a synthetic pending organizer', async () => {
   const c = await context(); await login(c, 'admin', '/admin'); const response = await c.request.post(base + `/api/admin/users/${ids.pending}/approve`); assert.equal(response.status(), 200); assert.equal((await db.user.findUniqueOrThrow({ where: { id: ids.pending } })).verified, true); await c.close();
@@ -107,7 +107,6 @@ for (const width of [1440, 390]) {
 }
 await owner.close(); await browser.close(); server.kill('SIGTERM'); await db.$disconnect();
 await mkdir('public', { recursive: true }); await writeFile('public/qa-release-report.json', JSON.stringify(results, null, 2));
-for (const row of results.checks) console.log('QA_CHECK ' + JSON.stringify(row));
 for (const row of results.accessibility) if (row.violations.length) console.log('QA_AXE ' + JSON.stringify(row));
 console.log('QA_TIMEZONES ' + JSON.stringify(results.timezone));
 console.log(`QA_BROWSER_TOTAL passed=${results.checks.filter(c => c.status === 'PASS').length} failed=${results.checks.filter(c => c.status === 'FAIL').length} skipped=0`);
