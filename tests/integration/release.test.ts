@@ -99,3 +99,9 @@ it('replaces obsolete future timestamps after a series time correction', async (
   const response = await event.PATCH(req('PATCH', { startTime: '2027-01-16T03:00:00Z', endTime: '2027-01-16T08:00:00Z' }), params(e.id)); expect(response.status).toBe(200);
   const rows = await prisma.eventInstance.findMany({ where: { eventId: e.id } }); expect(rows).toHaveLength(4); expect(rows.every(x => x.startTime.getUTCHours() === 3)).toBe(true);
 });
+it('clears stored optional URLs on an explicit empty edit', async () => {
+  const e = await make('clear-urls'); login('owner');
+  await prisma.event.update({ where: { id: e.id }, data: { imageUrl: 'https://example.invalid/image.jpg', ticketUrl: 'https://example.invalid/tickets' } });
+  const response = await event.PATCH(req('PATCH', { imageUrl: '', ticketUrl: '' }), params(e.id)); expect(response.status).toBe(200);
+  const saved = await prisma.event.findUniqueOrThrow({ where: { id: e.id } }); expect(saved.imageUrl).toBeNull(); expect(saved.ticketUrl).toBeNull();
+});

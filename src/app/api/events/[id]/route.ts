@@ -138,6 +138,8 @@ export async function PATCH(
       where: { id },
       data: {
         ...eventData,
+        ...(eventData.imageUrl === "" && { imageUrl: null }),
+        ...(eventData.ticketUrl === "" && { ticketUrl: null }),
         ...(slug !== undefined && { slug }),
         ...(nextStatus !== undefined && { status: nextStatus }),
         ...(recurrence && {
@@ -179,10 +181,10 @@ export async function PATCH(
     });
 
     const shouldRegenerateInstances =
-      updatedEvent.isRecurring &&
-      updatedEvent.recurrenceRule &&
+      (updatedEvent.isRecurring || event.isRecurring) &&
       ((nextStatus === "APPROVED" && event.status !== "APPROVED") ||
-        !!recurrence || !!eventData.startTime || !!eventData.endTime);
+        !!recurrence || !!eventData.startTime || !!eventData.endTime ||
+        (eventData.isRecurring !== undefined && eventData.isRecurring !== event.isRecurring));
 
     if (shouldRegenerateInstances) {
       await generateInstancesForEvent(id, { replaceFuture: true }).catch((err) =>

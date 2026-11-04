@@ -230,15 +230,16 @@ export async function generateInstancesForEvent(
       include: { recurrenceRule: true },
     });
 
-    if (!event || !event.isRecurring || !event.recurrenceRule) {
-      return 0;
-    }
+    if (!event) return 0;
 
     if (options.replaceFuture) {
       await tx.eventInstance.deleteMany({ where: {
         eventId, startTime: { gt: new Date() }, isModified: false, isCancelled: false,
       } });
     }
+    // Disabling a series must remove ordinary future rows under the same lock.
+    // Modified/cancelled exceptions remain as historical records.
+    if (!event.isRecurring || !event.recurrenceRule) return 0;
     const config: RecurrenceConfig = {
       frequency: event.recurrenceRule.frequency,
       interval: event.recurrenceRule.interval,
@@ -315,9 +316,10 @@ export async function getUpcomingInstances(
       eventId,
       startTime: { gte: new Date() },
       isCancelled: false,
-      ...(options?.requireApprovedParent
-        ? { Event: { status: "APPROVED" as const } }
-        : {}),
+      Event: {
+        isRecurring: true,
+        ...(options?.requireApprovedParent ? { status: "APPROVED" as const } : {}),
+      },
     },
     orderBy: { startTime: "asc" },
     take: limit,

@@ -1,4 +1,4 @@
 {
-  "buildCommand": "node scripts/assert-isolated-audit.mjs && npx prisma db push --skip-generate && npx vitest run --config vitest.integration.config.ts && next build",
+  "buildCommand": "node scripts/assert-isolated-audit.mjs && npx prisma db push --skip-generate && npx vitest run --config vitest.integration.config.ts && next build && npm install --prefix /tmp/mdl-qa-browser --no-save --package-lock=false @sparticuz/chromium@153.0.0 playwright-core@1.64.1 axe-core@4.14.0 && node tests/browser/release.mjs",
   "crons": []
 }
