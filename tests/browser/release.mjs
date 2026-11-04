@@ -92,7 +92,7 @@ for (const tz of ['America/Detroit', 'UTC', 'America/Los_Angeles', 'Asia/Tokyo']
   assert.match(await p.locator('main').innerText(), /8:30\s*PM/i); await p.close(); const page = await login(c, 'owner', '/organizer/events/releaseqa-hoover-nov/edit');
   assert.match(await page.getByRole('button', { name: 'Start Date', exact: true }).innerText(), /November 13/); assert.equal((await page.getByRole('combobox', { name: 'Start hour' }).innerText()).trim(), '8'); assert.equal((await page.getByRole('combobox', { name: 'Start AM/PM' }).innerText()).trim(), 'PM'); results.timezone.push({ timezone: tz, status: 'PASS' }); await c.close();
 });
-const publicPaths = ['/', '/calendar', '/events', '/event/releaseqa-hoover-nov', '/city/royal-oak', '/style/salsa', '/login', '/register', '/forgot-password', '/reset-password', '/privacy', '/terms', '/contact', '/unsubscribe'];
+const publicPaths = ['/', '/calendar', '/events', '/event/releaseqa-hoover-nov', '/events/city/royal-oak', '/events/style/salsa', '/login', '/register', '/forgot-password', '/reset-password', '/privacy', '/terms', '/contact', '/unsubscribe'];
 for (const width of [1440, 390]) {
   const c = await context({ viewport: { width, height: 1000 } }); const page = await c.newPage();
   for (const path of publicPaths) await check(`axe WCAG 2.1 AA ${width}px ${path}`, async () => {
@@ -107,7 +107,9 @@ for (const width of [1440, 390]) {
 }
 await owner.close(); await browser.close(); server.kill('SIGTERM'); await db.$disconnect();
 await mkdir('public', { recursive: true }); await writeFile('public/qa-release-report.json', JSON.stringify(results, null, 2));
-console.log('QA_BROWSER_RESULTS ' + JSON.stringify(results));
+for (const row of results.checks) console.log('QA_CHECK ' + JSON.stringify(row));
+for (const row of results.accessibility) if (row.violations.length) console.log('QA_AXE ' + JSON.stringify(row));
+console.log('QA_TIMEZONES ' + JSON.stringify(results.timezone));
 console.log(`QA_BROWSER_TOTAL passed=${results.checks.filter(c => c.status === 'PASS').length} failed=${results.checks.filter(c => c.status === 'FAIL').length} skipped=0`);
 // Keep the isolated preview available even when evidence reveals defects.
 // The release verdict uses every failed result, never just deployment READY.
