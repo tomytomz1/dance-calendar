@@ -1,24 +1,4 @@
 {
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "www.michigandance.life" }],
-      "destination": "https://michigandance.life/:path*",
-      "permanent": true
-    }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/notifications?type=new-events",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/notifications?type=reminders",
-      "schedule": "0 18 * * *"
-    },
-    {
-      "path": "/api/cron/generate-instances",
-      "schedule": "0 0 * * 0"
-    }
-  ]
+  "buildCommand": "node scripts/assert-isolated-audit.mjs && npx prisma db push --skip-generate && npx vitest run --config vitest.integration.config.ts && next build",
+  "crons": []
 }
