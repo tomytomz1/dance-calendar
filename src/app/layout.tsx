@@ -35,6 +35,14 @@ export const metadata: Metadata = {
   },
   description: defaultDescription,
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/brand/favicon.svg", type: "image/svg+xml" },
+    ],
+    // iOS home-screen icon (Safari otherwise requests a missing /apple-touch-icon.png)
+    apple: [{ url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" }],
+  },
   alternates: {
     canonical: "/",
   },
