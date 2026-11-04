@@ -5,13 +5,13 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t bg-muted/30 mt-auto">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <footer className="border-t border-white/10 bg-[#0A0C15] mt-auto">
+      <div className="container mx-auto px-5 py-12 max-w-7xl">
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 text-sm">
           <div>
-            <p className="font-semibold text-foreground mb-2">{SITE_NAME}</p>
+            <p className="font-extrabold tracking-[.15em] uppercase text-[#FFF1E5] mb-2">{SITE_NAME}</p>
             <p className="text-muted-foreground">
-              Michigan&apos;s calendar for salsa, bachata, swing, and ballroom
+              Find your rhythm. Find your people. Michigan&apos;s home for salsa, bachata, swing, and ballroom
               events.
             </p>
           </div>
@@ -23,6 +23,7 @@ export function SiteFooter() {
                   All events
                 </Link>
               </li>
+              <li><Link href="/calendar" className="hover:text-primary">Dance calendar</Link></li>
               <li>
                 <Link href="/about" className="hover:text-primary">
                   About

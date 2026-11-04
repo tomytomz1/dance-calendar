@@ -50,8 +50,8 @@ export function Header() {
   }, [isAdmin, fetchPendingCounts]);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center justify-between gap-2 w-full px-2 py-2 sm:px-4 min-w-0">
+    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0D101B]/95 shadow-[0_2px_30px_rgba(0,0,0,.2)] backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-10 min-w-0">
         <div className="flex items-center gap-1 min-w-0 flex-shrink">
           <HeaderMobileNav>
             <nav className="flex flex-col gap-4 mt-8">
@@ -60,8 +60,14 @@ export function Header() {
                 className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
               >
                 <Calendar className="h-5 w-5" />
-                Events
+                Explore Events
               </Link>
+              <Link href="/calendar" className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors">
+                <Calendar className="h-5 w-5" /> Dance Calendar
+              </Link>
+              <Link href="/events/style/salsa" className="text-lg font-medium hover:text-primary">Salsa Events</Link>
+              <Link href="/events/style/bachata" className="text-lg font-medium hover:text-primary">Bachata Events</Link>
+              <Link href={canCreateEvents && isVerified ? "/organizer/events/new" : "/register"} className="text-lg font-medium hover:text-primary">List your event</Link>
               {canCreateEvents && (
                 <Link
                   href="/organizer/events"
@@ -108,22 +114,33 @@ export function Header() {
             aria-label="Go to MichiganDance.Life homepage"
           >
             <Image
-              src="/michigandancelife-header-logo.png"
-              alt="MichiganDance.Life dance events calendar logo"
-              width={400}
-              height={93}
-              className="h-9 w-auto sm:h-12 md:h-16 max-w-[60vw]"
+              src="/brand/logo-on-dark.svg"
+              alt="Michigan Dance Life"
+              width={465}
+              height={82}
+              className="h-10 w-auto max-w-[55vw] sm:h-12"
               priority
             />
           </Link>
         </div>
 
+        <nav aria-label="Main navigation" className="hidden lg:flex items-center gap-8 text-sm font-semibold text-[#F7EFE5]">
+          <Link href="/calendar" className="hover:text-[#FF8179] transition-colors">Explore Events</Link>
+          <details className="group relative">
+            <summary className="cursor-pointer list-none hover:text-[#FF8179] transition-colors">Dance Styles <span aria-hidden="true">⌄</span></summary>
+            <div className="absolute right-0 top-full z-50 mt-3 w-44 rounded-xl border border-[#6B4A6A] bg-[#1B1424] p-2 shadow-2xl">
+              {["Salsa","Bachata","Kizomba","Swing","Ballroom"].map(style =>
+                <Link key={style} href={"/events/style/" + style.toLowerCase()} className="block rounded-lg px-3 py-2 hover:bg-white/10">{style}</Link>
+              )}
+            </div>
+          </details>
+          <Link href="/#discover" className="hover:text-[#FF8179] transition-colors">Cities</Link>
+          <Link href="/about" className="hover:text-[#FF8179] transition-colors">About</Link>
+        </nav>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button asChild size="sm" variant="ghost" className="hidden sm:flex">
-            <Link href="/events">Events</Link>
-          </Button>
+          <Link href={canCreateEvents && isVerified ? "/organizer/events/new" : "/register"} className="hidden sm:inline-flex min-h-10 items-center rounded-full bg-[#F46157] px-5 text-sm font-bold text-[#160E18] hover:bg-[#FF8179]">List an Event</Link>
           {canCreateEvents && isVerified && (
-            <Button asChild size="sm" className="flex">
+            <Button asChild size="sm" variant="outline" className="hidden xl:flex">
               <Link
                 href="/organizer/events/new"
                 className="flex items-center gap-1"

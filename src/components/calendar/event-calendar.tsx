@@ -17,7 +17,7 @@ interface EventCalendarProps {
 
 export function EventCalendar({ events, initialDate = new Date() }: EventCalendarProps) {
   const [currentDate, setCurrentDate] = useState(initialDate);
-  const [view, setView] = useState<"week" | "month">("week");
+  const [view, setView] = useState<"week" | "month">("month");
   const [direction, setDirection] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);

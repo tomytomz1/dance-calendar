@@ -125,7 +125,7 @@ export function MobileMonthView({
               style={{ touchAction: "none" }}
               className="shrink-0"
             >
-              <div className="grid grid-cols-7 border-b bg-muted/30">
+              <div className="grid grid-cols-7 border-b border-[#74526C] bg-[#22182A]">
                 {weekDays.map((d) => (
                   <div
                     key={d}
@@ -136,7 +136,7 @@ export function MobileMonthView({
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 shrink-0">
+              <div className="grid grid-cols-7 shrink-0 bg-[#191421]">
                 {calendarDays.map((day) => {
                   const eventsForDay = getEventsForDay(day);
                   const isCurrentMonth = isSameMonth(day, currentDate);
@@ -150,8 +150,8 @@ export function MobileMonthView({
                       className={cn(
                         "flex flex-col items-center justify-center p-1 border-r border-b last:border-r-0 min-h-[44px] transition-colors",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                        !isCurrentMonth && "bg-muted/20",
-                        isSelected && "bg-primary/5",
+                        !isCurrentMonth && "bg-[#14121D]",
+                        isSelected && "bg-[#F46157]/15 ring-1 ring-inset ring-[#F46157]",
                         "hover:bg-muted/50 active:bg-muted"
                       )}
                     >
@@ -195,7 +195,7 @@ export function MobileMonthView({
 
       <div
         ref={scrollContainerRef}
-        className="touch-pan-y border-t bg-card px-4 pb-24 pt-0 space-y-6"
+        className="touch-pan-y border-t border-[#70516B] bg-[#201828] px-4 pb-16 pt-3 space-y-6"
       >
         {daysWithEvents.map((d) => {
           const dayEvents = getEventsForDay(d);

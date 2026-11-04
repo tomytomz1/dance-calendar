@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { generateRecurrenceInstances } from "@/lib/recurrence";
 import { tryDb, withDbRetry } from "@/lib/with-db-retry";
 
-export const SITE_NAME = "MichiganDance.Life";
+export const SITE_NAME = "Michigan Dance Life";
 
 const DEFAULT_SITE_URL = "https://michigandance.life";
 
