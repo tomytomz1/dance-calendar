@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, LogOut, User, Settings, Calendar, LayoutDashboard } from "lucide-react";
+import { Plus, LogOut, User, Settings, Calendar, LayoutDashboard, ChevronDown } from "lucide-react";
 import { HeaderMobileNav } from "@/components/layout/header-mobile-nav";
 
 export function Header() {
@@ -126,14 +126,22 @@ export function Header() {
 
         <nav aria-label="Main navigation" className="hidden lg:flex items-center gap-8 text-sm font-semibold text-[#F7EFE5]">
           <Link href="/calendar" className="hover:text-[#FF8179] transition-colors">Explore Events</Link>
-          <details className="group relative">
-            <summary className="cursor-pointer list-none hover:text-[#FF8179] transition-colors">Dance Styles <span aria-hidden="true">⌄</span></summary>
-            <div className="absolute right-0 top-full z-50 mt-3 w-44 rounded-xl border border-[#6B4A6A] bg-[#1B1424] p-2 shadow-2xl">
-              {["Salsa","Bachata","Kizomba","Swing","Ballroom"].map(style =>
-                <Link key={style} href={"/events/style/" + style.toLowerCase()} className="block rounded-lg px-3 py-2 hover:bg-white/10">{style}</Link>
-              )}
-            </div>
-          </details>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger className="inline-flex items-center gap-1 rounded-md outline-none transition-colors hover:text-[#FF8179] focus-visible:ring-2 focus-visible:ring-[#FF8179] data-[state=open]:text-[#FF8179]">
+              Dance Styles <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" sideOffset={12} className="w-48 rounded-xl border-[#6B4A6A] bg-[#1B1424] p-2 text-[#F7EFE5] shadow-2xl">
+              {["Salsa", "Bachata", "Kizomba", "Swing", "Ballroom"].map(style => (
+                <DropdownMenuItem key={style} asChild className="cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold focus:bg-white/10 focus:text-[#FF8179]">
+                  <Link href={"/events/style/" + style.toLowerCase()}>{style}</Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-[#FF9A93] focus:bg-white/10 focus:text-[#FF8179]">
+                <Link href="/events">All events</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Link href="/#discover" className="hover:text-[#FF8179] transition-colors">Cities</Link>
           <Link href="/about" className="hover:text-[#FF8179] transition-colors">About</Link>
         </nav>
