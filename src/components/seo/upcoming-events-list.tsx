@@ -50,8 +50,8 @@ export function UpcomingEventsList({ events, heading = "Upcoming dance events", 
                         {event.danceStyles.slice(0,4).map(style => <Link key={style} href={stylePath(style)} className="rounded-full bg-[#794788] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#F46157] hover:text-[#160E18]">{style}</Link>)}
                       </div>
                       {showHubLinks && <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#FF938C]">
-                        <Link href={cityPath(event.city)} className="hover:underline">More in {event.city}</Link>
-                        <Link href={href} className="inline-flex items-center gap-1 font-bold hover:underline">Details <ArrowRight size={14}/></Link>
+                        <Link href={cityPath(event.city)} className="inline-flex min-h-6 items-center hover:underline">More in {event.city}</Link>
+                        <Link href={href} className="inline-flex min-h-6 items-center gap-1 font-bold hover:underline">Details <ArrowRight size={14}/></Link>
                       </p>}
                     </div>
                   </div>

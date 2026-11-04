@@ -42,7 +42,7 @@ export function FeaturedEvents({ events }: FeaturedEventsProps) {
           {featured.map(event => {
             return (
               <article key={event.instanceKey ?? (event.id + "-" + event.startTime.toISOString())} className="group overflow-hidden rounded-2xl border border-[#715264]/70 bg-[#1B1522] shadow-[0_20px_60px_rgba(0,0,0,.17)] transition-all hover:-translate-y-1 hover:border-[#F46157]">
-                <Link href={getListEventHref(event)} className="block focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#F46157]" aria-label={"View " + event.title}>
+                <Link href={getListEventHref(event)} className="block focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#F46157]">
                   <div className="relative h-48 overflow-hidden bg-[#38273C]">
                     {/* The fallback art is illustrative, not a photo of this specific event. */}
                     <EventCoverImage
