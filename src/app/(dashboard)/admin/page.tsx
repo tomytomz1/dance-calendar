@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import { format } from "date-fns";
+import { formatInSiteTimeZone } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -109,7 +109,7 @@ function getRecurrenceLabel(event: AdminEvent): string | null {
   }
 
   if (frequency === "MONTHLY") {
-    const day = new Date(event.startTime).getDate();
+    const day = Number(formatInSiteTimeZone(event.startTime, "d"));
     const suffix =
       day % 10 === 1 && day !== 11
         ? "st"
@@ -349,7 +349,7 @@ export default function AdminPage() {
                 <CardContent>
                   <div className="space-y-2 text-sm text-muted-foreground mb-4">
                     <p>
-                      {format(new Date(event.startTime), "PPP 'at' p")}
+                      {formatInSiteTimeZone(new Date(event.startTime), "PPP 'at' p")}
                     </p>
                     <p>{event.venue}, {event.city}</p>
                     <p>By: {event.organizer.name}</p>
@@ -412,7 +412,7 @@ export default function AdminPage() {
                 <CardContent>
                   <div className="space-y-2 text-sm text-muted-foreground mb-4">
                     <p>
-                      {format(new Date(event.startTime), "PPP 'at' p")}
+                      {formatInSiteTimeZone(new Date(event.startTime), "PPP 'at' p")}
                     </p>
                     <p>{event.venue}, {event.city}</p>
                     <p>By: {event.organizer.name}</p>
@@ -494,7 +494,7 @@ export default function AdminPage() {
                             {organizer.email}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Joined {format(new Date(organizer.createdAt), "PP")}
+                            Joined {formatInSiteTimeZone(new Date(organizer.createdAt), "PP")}
                           </p>
                         </div>
                       </div>
@@ -615,7 +615,7 @@ export default function AdminPage() {
                           {dancer.email}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Joined {format(new Date(dancer.createdAt), "PP")}
+                          Joined {formatInSiteTimeZone(new Date(dancer.createdAt), "PP")}
                         </p>
                       </div>
                     </div>

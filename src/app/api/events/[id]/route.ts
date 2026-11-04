@@ -5,37 +5,8 @@ import { generateInstancesForEvent } from "@/lib/recurrence";
 import { generateUniqueEventSlug } from "@/lib/slug";
 import { organizerEditStatus } from "@/lib/event-status";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
-import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
+import { updateEventSchema } from "@/lib/event-validation";
 import { z } from "zod";
-
-const recurrenceSchema = z.object({
-  frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]),
-  interval: z.number().min(1).default(1),
-  daysOfWeek: z.array(z.number()).optional(),
-  until: z.string().transform((val) => new Date(val)).optional(),
-  count: z.number().optional(),
-  monthlyPattern: z.enum(["BY_DATE", "BY_WEEKDAY"]).optional(),
-  monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
-  monthlyWeeks: z.array(z.number()).optional(),
-});
-
-const updateEventSchema = z.object({
-  title: z.string().min(3).optional(),
-  description: z.string().optional(),
-  danceStyles: z.array(z.string()).min(1).optional(),
-  venue: z.string().min(2).optional(),
-  address: z.string().min(5).optional(),
-  city: z.string().min(2).optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  startTime: z.string().transform((val) => new Date(val)).optional(),
-  endTime: z.string().transform((val) => new Date(val)).optional(),
-  imageUrl: optionalEmptyOrHttpUrl,
-  ticketUrl: optionalEmptyOrHttpUrl,
-  price: z.string().optional(),
-  status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "CANCELLED"]).optional(),
-  recurrence: recurrenceSchema.optional(),
-});
 
 export async function GET(
   request: Request,
@@ -118,7 +89,7 @@ export async function PATCH(
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { organizerId: true, status: true },
+      select: { organizerId: true, status: true, startTime: true, endTime: true, isRecurring: true, recurrenceRule: true },
     });
 
     if (!event) {
@@ -142,6 +113,13 @@ export async function PATCH(
 
     const body = await request.json();
     const validatedData = updateEventSchema.parse(body);
+
+    if ((validatedData.endTime ?? event.endTime) <= (validatedData.startTime ?? event.startTime)) {
+      return NextResponse.json({ error: "End must be after the start." }, { status: 400 });
+    }
+    if ((validatedData.isRecurring ?? event.isRecurring) && !validatedData.recurrence && !event.recurrenceRule) {
+      return NextResponse.json({ error: "A recurring event requires a recurrence rule." }, { status: 400 });
+    }
 
     // Organizer edits stay published (no admin re-review); admins set any status.
     const nextStatus = isAdmin
@@ -204,21 +182,10 @@ export async function PATCH(
       updatedEvent.isRecurring &&
       updatedEvent.recurrenceRule &&
       ((nextStatus === "APPROVED" && event.status !== "APPROVED") ||
-        !!recurrence);
+        !!recurrence || !!eventData.startTime || !!eventData.endTime);
 
     if (shouldRegenerateInstances) {
-      try {
-        await prisma.eventInstance.deleteMany({
-          where: {
-            eventId: id,
-            startTime: { gt: new Date() },
-          },
-        });
-      } catch (err) {
-        console.error("Failed to clear existing future instances:", err);
-      }
-
-      await generateInstancesForEvent(id).catch((err) =>
+      await generateInstancesForEvent(id, { replaceFuture: true }).catch((err) =>
         console.error("Failed to generate instances on update:", err)
       );
     }

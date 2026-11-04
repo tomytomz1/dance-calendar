@@ -54,9 +54,10 @@ describe("resolveEventOccurrence", () => {
     expect(show(resolveEventOccurrence(event, null, now).start)).toBe("Sat Nov 21 9:00 PM");
   });
 
-  it("still honours ?instance= on a recurring event with no rule", () => {
+  it("does not trust ?instance= on a recurring event with no rule", () => {
     const r = resolveEventOccurrence({ ...event, recurrenceRule: null }, "2026-11-22T02:00:00.000Z", now);
-    expect(r.start.toISOString()).toBe("2026-11-22T02:00:00.000Z");
-    expect(r.end.toISOString()).toBe("2026-11-22T07:00:00.000Z");
+    expect(r.start).toEqual(event.startTime);
+    expect(r.instanceUnavailable).toBe(true);
+    expect(r.end).toEqual(event.endTime);
   });
 });

@@ -6,6 +6,9 @@ import {
   startOfMonth,
   isBefore,
   isAfter,
+  endOfDay,
+  startOfWeek,
+  differenceInCalendarWeeks,
   differenceInMinutes,
 } from "date-fns";
 import { prisma } from "./prisma";
@@ -43,20 +46,22 @@ export function generateRecurrenceInstances(
   maxInstances: number = 52
 ): GeneratedInstance[] {
   const instances: GeneratedInstance[] = [];
+  if (!Number.isFinite(+startTime) || !Number.isFinite(+endTime) || endTime <= startTime ||
+      !Number.isInteger(config.interval) || config.interval < 1 ||
+      (config.count !== undefined && (!Number.isInteger(config.count) || config.count < 1)) ||
+      (config.until && !Number.isFinite(+config.until))) return instances;
+  if (config.frequency === "WEEKLY" && config.daysOfWeek?.length &&
+      !config.daysOfWeek.some((d) => Number.isInteger(d) && d >= 0 && d <= 6)) return instances;
   const duration = differenceInMinutes(endTime, startTime);
 
   let currentStart = new Date(startTime);
   let instanceCount = 0;
 
-  const hasValidUntil =
-    config.until && isAfter(config.until, startTime);
-  const openEndedLimit =
-    config.horizon && isAfter(config.horizon, startTime)
-      ? config.horizon
-      : addMonths(startTime, 12);
-  const maxDate = hasValidUntil ? (config.until as Date) : openEndedLimit;
-  const maxCount =
-    config.count || (config.horizon ? MAX_HORIZON_INSTANCES : maxInstances);
+  // `until` comes from a calendar date picker: include that entire Michigan day.
+  const until = config.until ? endOfDay(config.until) : undefined;
+  const openEndedLimit = config.horizon ?? addMonths(startTime, 12);
+  const maxDate = until ?? (config.count ? new Date(8640000000000000) : openEndedLimit);
+  const maxCount = Math.min(config.count ?? (config.horizon ? MAX_HORIZON_INSTANCES : maxInstances), MAX_HORIZON_INSTANCES);
 
   // Special handling for advanced monthly patterns (e.g. 2nd Friday, last Sunday)
   if (
@@ -80,7 +85,7 @@ export function generateRecurrenceInstances(
         (weekday - firstOfMonth.getDay() + 7) % 7;
       const firstDow = addDays(firstOfMonth, firstDowOffset);
 
-      for (const week of config.monthlyWeeks) {
+      for (const week of [...new Set(config.monthlyWeeks)].sort((a, b) => (a === -1 ? 6 : a) - (b === -1 ? 6 : b))) {
         let candidate: Date | null = null;
 
         if (week > 0) {
@@ -111,7 +116,7 @@ export function generateRecurrenceInstances(
         );
 
         if (!isBefore(instanceStart, startTime)) {
-          if (isBefore(instanceStart, maxDate) && instanceCount < maxCount) {
+          if (instanceStart <= maxDate && instanceCount < maxCount && !instances.some((i) => +i.startTime === +instanceStart)) {
             const instanceEnd = new Date(
               instanceStart.getTime() + duration * 60 * 1000
             );
@@ -134,10 +139,11 @@ export function generateRecurrenceInstances(
     return instances;
   }
 
-  while (instanceCount < maxCount && isBefore(currentStart, maxDate)) {
+  while (instanceCount < maxCount && currentStart <= maxDate) {
     if (config.frequency === "WEEKLY" && config.daysOfWeek?.length) {
       const dayOfWeek = currentStart.getDay();
-      if (config.daysOfWeek.includes(dayOfWeek)) {
+      if (config.daysOfWeek.includes(dayOfWeek) &&
+          differenceInCalendarWeeks(currentStart, startOfWeek(startTime)) % config.interval === 0) {
         instances.push({
           startTime: new Date(currentStart),
           endTime: new Date(currentStart.getTime() + duration * 60 * 1000),
@@ -163,7 +169,7 @@ export function generateRecurrenceInstances(
           currentStart = addWeeks(currentStart, 2 * config.interval);
           break;
         case "MONTHLY":
-          currentStart = addMonths(currentStart, config.interval);
+          currentStart = addMonths(startTime, instanceCount * config.interval);
           break;
       }
     }
@@ -210,56 +216,68 @@ export async function createEventInstances(
   return result.count;
 }
 
-export async function generateInstancesForEvent(eventId: string): Promise<number> {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    include: { recurrenceRule: true },
-  });
+export async function generateInstancesForEvent(
+  eventId: string,
+  options: { replaceFuture?: boolean } = {}
+): Promise<number> {
+  return prisma.$transaction(async (tx) => {
+    // All generation entry points lock the same parent before reading instances.
+    // Under READ COMMITTED a waiter sees the first writer's committed rows.
+    await tx.$queryRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
 
-  if (!event || !event.isRecurring || !event.recurrenceRule) {
-    return 0;
-  }
+    const event = await tx.event.findUnique({
+      where: { id: eventId },
+      include: { recurrenceRule: true },
+    });
 
-  const config: RecurrenceConfig = {
-    frequency: event.recurrenceRule.frequency,
-    interval: event.recurrenceRule.interval,
-    daysOfWeek: event.recurrenceRule.daysOfWeek,
-    until: event.recurrenceRule.until || undefined,
-    count: event.recurrenceRule.count || undefined,
-    monthlyPattern: event.recurrenceRule.monthlyPattern || "BY_DATE",
-    monthlyDayOfWeek: event.recurrenceRule.monthlyDayOfWeek ?? undefined,
-    monthlyWeeks: event.recurrenceRule.monthlyWeeks ?? [],
-  };
+    if (!event || !event.isRecurring || !event.recurrenceRule) {
+      return 0;
+    }
 
-  const instances = generateRecurrenceInstances(
-    event.startTime,
-    event.endTime,
-    config
-  );
+    if (options.replaceFuture) {
+      await tx.eventInstance.deleteMany({ where: {
+        eventId, startTime: { gt: new Date() }, isModified: false, isCancelled: false,
+      } });
+    }
+    const config: RecurrenceConfig = {
+      frequency: event.recurrenceRule.frequency,
+      interval: event.recurrenceRule.interval,
+      daysOfWeek: event.recurrenceRule.daysOfWeek,
+      until: event.recurrenceRule.until || undefined,
+      count: event.recurrenceRule.count || undefined,
+      monthlyPattern: event.recurrenceRule.monthlyPattern || "BY_DATE",
+      monthlyDayOfWeek: event.recurrenceRule.monthlyDayOfWeek ?? undefined,
+      monthlyWeeks: event.recurrenceRule.monthlyWeeks ?? [],
+      horizon: addMonths(new Date(), 13),
+    };
 
-  const futureInstances = instances.filter((i) =>
-    isAfter(i.startTime, new Date())
-  );
-  if (futureInstances.length === 0) return 0;
+    const instances = generateRecurrenceInstances(
+      event.startTime,
+      event.endTime,
+      config
+    );
 
-  // EventInstance has no unique (eventId, startTime) constraint, so
-  // `skipDuplicates` cannot catch repeats: skip occurrences already stored,
-  // otherwise every weekly cron run inserts another copy of each date.
-  const existing = await prisma.eventInstance.findMany({
-    where: {
-      eventId,
-      startTime: { gte: futureInstances[0].startTime },
-    },
-    select: { startTime: true },
-  });
+    const futureInstances = instances.filter((i) =>
+      isAfter(i.startTime, new Date())
+    );
+    if (futureInstances.length === 0) return 0;
 
-  return createEventInstances(
-    eventId,
-    excludeExistingInstances(
-      futureInstances,
-      existing.map((e) => e.startTime)
-    )
-  );
+    // EventInstance has no unique (eventId, startTime) constraint, so
+    // `skipDuplicates` cannot catch repeats: skip occurrences already stored,
+    // otherwise every weekly cron run inserts another copy of each date.
+    const existing = await tx.eventInstance.findMany({
+      where: {
+        eventId,
+        startTime: { gte: futureInstances[0].startTime, lte: futureInstances.at(-1)!.startTime },
+      },
+      select: { startTime: true },
+    });
+
+    const pending = excludeExistingInstances(futureInstances, existing.map((e) => e.startTime));
+    if (!pending.length) return 0;
+    const inserted = await tx.eventInstance.createMany({ data: pending.map((i) => ({ ...i, eventId })) });
+    return inserted.count;
+  }, { isolationLevel: "ReadCommitted", timeout: 15000 });
 }
 
 export async function cancelEventInstance(instanceId: string): Promise<void> {

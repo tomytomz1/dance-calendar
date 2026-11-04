@@ -81,6 +81,10 @@ export async function checkEventConflicts(
       daysOfWeek: event.recurrenceRule.daysOfWeek,
       until: event.recurrenceRule.until ?? undefined,
       count: event.recurrenceRule.count ?? undefined,
+      monthlyPattern: event.recurrenceRule.monthlyPattern,
+      monthlyDayOfWeek: event.recurrenceRule.monthlyDayOfWeek ?? undefined,
+      monthlyWeeks: event.recurrenceRule.monthlyWeeks ?? [],
+      horizon: endTime,
     };
 
     const instances = generateRecurrenceInstances(

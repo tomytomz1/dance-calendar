@@ -22,6 +22,7 @@ import {
   cityPath,
   formatEventDateForMeta,
   getEventPath,
+  getEventOccurrencePath,
   normalizeCityName,
   stylePath,
   SITE_NAME,
@@ -41,7 +42,7 @@ interface EventPageProps {
   searchParams: Promise<{ instance?: string }>;
 }
 
-export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: EventPageProps): Promise<Metadata> {
   const { id: idOrSlug } = await params;
   const event = await getApprovedEventByIdOrSlug(idOrSlug);
 
@@ -51,7 +52,8 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
 
   const city = normalizeCityName(event.city);
   const venue = normalizeVenueName(event.venue);
-  const { start } = resolveEventOccurrence(event);
+  const { instance } = await searchParams;
+  const { start } = resolveEventOccurrence(event, instance);
   const path = getEventPath(event);
   const dateLabel = formatEventDateForMeta(start);
   const title = `${event.title} — ${dateLabel} at ${venue}, ${city}`;
@@ -90,7 +92,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
     notFound();
   }
 
-  const { start: displayStart, end: displayEnd } = resolveEventOccurrence(event, instanceParam);
+  const { start: displayStart, end: displayEnd, instanceUnavailable } = resolveEventOccurrence(event, instanceParam);
   const city = normalizeCityName(event.city);
   const venue = normalizeVenueName(event.venue);
   const organizerImage = organizerImageUrl(event.imageUrl);
@@ -116,7 +118,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
   };
 
   const eventPath = getEventPath(event);
-  const shareUrl = `${SITE_URL}${eventPath}`;
+  const shareUrl = `${SITE_URL}${getEventOccurrencePath(event, event.isRecurring ? displayStart : null)}`;
   const mapsUrl = buildGoogleMapsUrl({
     address: event.address,
     city,
@@ -128,6 +130,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
 
   return (
     <div className="flex min-h-screen flex-col">
+      {instanceUnavailable && <p role="status" className="mx-auto w-full max-w-6xl px-4 py-4 text-[#F7EFE5]">The requested occurrence is no longer available. The event details below show {event.isRecurring && event.recurrenceRule ? "the next available occurrence, or the original event if the series has ended" : "the original event"}. Check the date before making plans.</p>}
       <JsonLdScript
         data={[
           buildEventJsonLd(seoEvent, {

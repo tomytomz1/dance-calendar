@@ -83,3 +83,25 @@ export function pinProcessTimeZone(): void {
     process.env.TZ = SITE_TIME_ZONE;
   }
 }
+
+/** Convert date-picker fields in Michigan to an instant, independent of browser TZ.
+ * Reject DST gaps instead of silently moving an organizer's event an hour.
+ * On the repeated autumn hour choose the earlier matching instant explicitly.
+ */
+export function fromSiteWallClock(day: Date, time: string = "00:00"): Date {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!Number.isFinite(+day) || !match || +match[1] > 23 || +match[2] > 59) {
+    throw new RangeError("Choose a valid Michigan date and time.");
+  }
+  const fields = [day.getFullYear(), day.getMonth(), day.getDate(), +match[1], +match[2]];
+  const wall = Date.UTC(fields[0], fields[1], fields[2], fields[3], fields[4]);
+  // Detroit uses UTC-4 or UTC-5. Compare formatted fields, never browser offsets.
+  for (const offset of [4, 5]) {
+    const instant = new Date(wall + offset * 3600000);
+    const parts = Object.fromEntries(getPartsFormatter().formatToParts(instant)
+      .filter((p) => p.type !== "literal").map((p) => [p.type, Number(p.value)]));
+    if (parts.year === fields[0] && parts.month === fields[1] + 1 &&
+        parts.day === fields[2] && parts.hour === fields[3] && parts.minute === fields[4]) return instant;
+  }
+  throw new RangeError("This Michigan time does not exist because clocks move forward. Choose another time.");
+}

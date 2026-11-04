@@ -42,8 +42,7 @@ export function resolveEventOccurrence(
   event: OccurrenceSource,
   instanceParam?: string | null,
   now: Date = new Date()
-): { start: Date; end: Date; isSpecificInstance: boolean } {
-  const duration = event.endTime.getTime() - event.startTime.getTime();
+): { start: Date; end: Date; isSpecificInstance: boolean; instanceUnavailable?: boolean } {
   const requested =
     event.isRecurring && instanceParam && !Number.isNaN(Date.parse(instanceParam))
       ? new Date(instanceParam)
@@ -81,11 +80,9 @@ export function resolveEventOccurrence(
 
     const next = instances.find((instance) => instance.endTime >= now);
     if (next) {
-      return { start: next.startTime, end: next.endTime, isSpecificInstance: false };
+      return { start: next.startTime, end: next.endTime, isSpecificInstance: false, instanceUnavailable: !!instanceParam };
     }
-  } else if (requested) {
-    return { start: requested, end: new Date(requested.getTime() + duration), isSpecificInstance: true };
   }
 
-  return { start: event.startTime, end: event.endTime, isSpecificInstance: false };
+  return { start: event.startTime, end: event.endTime, isSpecificInstance: false, instanceUnavailable: !!instanceParam };
 }

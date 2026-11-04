@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, addHours } from "date-fns";
+import { format, addHours, startOfDay } from "date-fns";
+import { toSiteWallClock, fromSiteWallClock, siteNow, formatInSiteTimeZone } from "@/lib/timezone";
+import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +42,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
@@ -60,8 +61,8 @@ const eventFormSchema = z.object({
   startTime: z.string().min(1, "Start time is required"),
   endDate: z.date({ message: "End date is required" }),
   endTime: z.string().min(1, "End time is required"),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  ticketUrl: z.string().url().optional().or(z.literal("")),
+  imageUrl: optionalEmptyOrHttpUrl,
+  ticketUrl: optionalEmptyOrHttpUrl,
   price: z.string().optional(),
   isRecurring: z.boolean(),
   recurrenceFrequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]).optional(),
@@ -69,6 +70,18 @@ const eventFormSchema = z.object({
   monthlyPattern: z.enum(["BY_DATE", "BY_WEEKDAY"]).optional(),
   monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
   monthlyWeeks: z.array(z.number()).optional(),
+}).superRefine((data, ctx) => {
+  try {
+    const start = fromSiteWallClock(data.startDate, data.startTime);
+    const end = fromSiteWallClock(data.endDate, data.endTime);
+    if (end <= start) ctx.addIssue({ code: "custom", path: ["endTime"], message: "End must be after the start." });
+  } catch (error) {
+    ctx.addIssue({ code: "custom", path: ["startTime"], message: (error as Error).message });
+  }
+  if (data.isRecurring && data.recurrenceFrequency === "MONTHLY" && data.monthlyPattern === "BY_WEEKDAY" &&
+      (data.monthlyDayOfWeek === undefined || !data.monthlyWeeks?.length)) ctx.addIssue({ code: "custom", path: ["monthlyWeeks"], message: "Choose a weekday and at least one week." });
+  if (data.isRecurring && !data.recurrenceFrequency) ctx.addIssue({ code: "custom", path: ["recurrenceFrequency"], message: "Choose a recurrence frequency." });
+  if (data.recurrenceUntil && startOfDay(data.recurrenceUntil) < startOfDay(data.startDate)) ctx.addIssue({ code: "custom", path: ["recurrenceUntil"], message: "Recurrence end date must be on or after the start." });
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -132,17 +145,17 @@ export function EventForm({ event, mode }: EventFormProps) {
         venue: event.venue,
         address: event.address,
         city: event.city,
-        startDate: new Date(event.startTime),
-        startTime: format(new Date(event.startTime), "HH:mm"),
-        endDate: new Date(event.endTime),
-        endTime: format(new Date(event.endTime), "HH:mm"),
+        startDate: toSiteWallClock(event.startTime),
+        startTime: formatInSiteTimeZone(event.startTime, "HH:mm"),
+        endDate: toSiteWallClock(event.endTime),
+        endTime: formatInSiteTimeZone(event.endTime, "HH:mm"),
         imageUrl: event.imageUrl || "",
         ticketUrl: event.ticketUrl || "",
         price: event.price || "",
         isRecurring: event.isRecurring,
         recurrenceFrequency: event.recurrenceRule?.frequency,
         recurrenceUntil: event.recurrenceRule?.until
-          ? new Date(event.recurrenceRule.until)
+          ? toSiteWallClock(event.recurrenceRule.until)
           : undefined,
         monthlyPattern: event.recurrenceRule?.monthlyPattern ?? "BY_DATE",
         monthlyDayOfWeek: event.recurrenceRule?.monthlyDayOfWeek ?? undefined,
@@ -184,10 +197,7 @@ export function EventForm({ event, mode }: EventFormProps) {
 
   const getDateTime = (date: Date | undefined, time: string | undefined): Date | null => {
     if (!date || !time?.trim()) return null;
-    const dateTime = new Date(date);
-    const [hours, minutes] = (time || "00:00").split(":").map(Number);
-    dateTime.setHours(hours ?? 0, minutes ?? 0);
-    return dateTime;
+    try { return fromSiteWallClock(date, time); } catch { return null; }
   };
 
   const startDateTime = getDateTime(watchedStartDate, watchedStartTime);
@@ -216,13 +226,8 @@ export function EventForm({ event, mode }: EventFormProps) {
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
 
-    const startDateTime = new Date(data.startDate);
-    const [startHours, startMinutes] = data.startTime.split(":").map(Number);
-    startDateTime.setHours(startHours, startMinutes);
-
-    const endDateTime = new Date(data.endDate);
-    const [endHours, endMinutes] = data.endTime.split(":").map(Number);
-    endDateTime.setHours(endHours, endMinutes);
+    const startDateTime = fromSiteWallClock(data.startDate, data.startTime);
+    const endDateTime = fromSiteWallClock(data.endDate, data.endTime);
 
     const hasExistingRecurrence = !!event?.recurrenceRule;
     const effectiveRecurrenceFrequency =
@@ -249,7 +254,7 @@ export function EventForm({ event, mode }: EventFormProps) {
           recurrence: {
             frequency: effectiveRecurrenceFrequency,
             interval: 1,
-            until: data.recurrenceUntil?.toISOString(),
+            until: data.recurrenceUntil ? fromSiteWallClock(data.recurrenceUntil).toISOString() : undefined,
             ...(effectiveRecurrenceFrequency === "MONTHLY" && {
               monthlyPattern:
                 data.monthlyPattern ??
@@ -363,16 +368,9 @@ export function EventForm({ event, mode }: EventFormProps) {
                   </FormDescription>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {DANCE_STYLES.map((style) => (
-                      <Badge
-                        key={style}
-                        variant={
-                          selectedStyles.includes(style) ? "default" : "outline"
-                        }
-                        className="cursor-pointer text-sm py-1.5 px-3"
-                        onClick={() => toggleStyle(style)}
-                      >
-                        {style}
-                      </Badge>
+                      <Button type="button" key={style} aria-pressed={selectedStyles.includes(style)}
+                        variant={selectedStyles.includes(style) ? "default" : "outline"}
+                        className="min-h-11 text-sm" onClick={() => toggleStyle(style)}>{style}</Button>
                     ))}
                   </div>
                   <FormMessage />
@@ -384,7 +382,7 @@ export function EventForm({ event, mode }: EventFormProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Date & Time</CardTitle>
+            <CardTitle>Date & Time</CardTitle><p className="text-sm text-muted-foreground">All dates and times are Michigan time.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <ConflictWarning
@@ -429,7 +427,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(date);
                             if (date) setStartDateOpen(false);
                           }}
-                          disabled={(date) => date < new Date()}
+                          disabled={(date) => date < startOfDay(siteNow())}
                           initialFocus
                         />
                       </PopoverContent>
@@ -549,7 +547,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(date);
                             if (date) setEndDateOpen(false);
                           }}
-                          disabled={(date) => date < new Date()}
+                          disabled={(date) => date < startOfDay(siteNow())}
                           initialFocus
                         />
                       </PopoverContent>
@@ -737,7 +735,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                                 field.onChange(date);
                                 setRecurrenceUntilOpen(false);
                               }}
-                              disabled={(date) => date < new Date()}
+                              disabled={(date) => date < startOfDay(siteNow())}
                               initialFocus
                             />
                           </PopoverContent>
@@ -861,12 +859,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                                     field.value?.includes(option.value) ??
                                     false;
                                   return (
-                                    <Badge
+                                    <Button type="button" aria-pressed={selected}
                                       key={option.value}
                                       variant={
                                         selected ? "default" : "outline"
                                       }
-                                      className="cursor-pointer px-3 py-1 text-sm"
+                                      className="min-h-11 px-3 py-1 text-sm"
                                       onClick={() => {
                                         const current = field.value || [];
                                         const next = selected
@@ -878,7 +876,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                                       }}
                                     >
                                       {option.label}
-                                    </Badge>
+                                    </Button>
                                   );
                                 })}
                               </div>

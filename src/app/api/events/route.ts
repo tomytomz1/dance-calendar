@@ -7,37 +7,8 @@ import { generateUniqueEventSlug } from "@/lib/slug";
 import { NEW_EVENT_STATUS } from "@/lib/event-status";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
-import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
+import { createEventSchema as eventSchema } from "@/lib/event-validation";
 import { z } from "zod";
-
-const recurrenceSchema = z.object({
-  frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]),
-  interval: z.number().min(1).default(1),
-  daysOfWeek: z.array(z.number()).optional(),
-  until: z.string().transform((val) => new Date(val)).optional(),
-  count: z.number().optional(),
-  monthlyPattern: z.enum(["BY_DATE", "BY_WEEKDAY"]).optional(),
-  monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
-  monthlyWeeks: z.array(z.number()).optional(),
-});
-
-const eventSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters"),
-  description: z.string().optional(),
-  danceStyles: z.array(z.string()).min(1, "Select at least one dance style"),
-  venue: z.string().min(2, "Venue is required"),
-  address: z.string().min(5, "Address is required"),
-  city: z.string().min(2, "City is required"),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  startTime: z.string().transform((val) => new Date(val)),
-  endTime: z.string().transform((val) => new Date(val)),
-  imageUrl: optionalEmptyOrHttpUrl,
-  ticketUrl: optionalEmptyOrHttpUrl,
-  price: z.string().optional(),
-  isRecurring: z.boolean().optional().default(false),
-  recurrence: recurrenceSchema.optional(),
-});
 
 export async function GET(request: Request) {
   try {
