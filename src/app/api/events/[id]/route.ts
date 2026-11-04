@@ -7,6 +7,7 @@ import { organizerEditStatus } from "@/lib/event-status";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { updateEventSchema } from "@/lib/event-validation";
 import { z } from "zod";
+import { canManageEvents } from "@/lib/event-authorization";
 
 export async function GET(
   request: Request,
@@ -85,6 +86,9 @@ export async function PATCH(
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!canManageEvents(session.user)) {
+      return NextResponse.json({ error: "Verified organizer access is required" }, { status: 403 });
     }
 
     const event = await prisma.event.findUnique({
@@ -219,6 +223,9 @@ export async function DELETE(
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!canManageEvents(session.user)) {
+      return NextResponse.json({ error: "Verified organizer access is required" }, { status: 403 });
     }
 
     const event = await prisma.event.findUnique({

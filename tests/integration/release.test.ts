@@ -105,3 +105,13 @@ it('clears stored optional URLs on an explicit empty edit', async () => {
   const response = await event.PATCH(req('PATCH', { imageUrl: '', ticketUrl: '' }), params(e.id)); expect(response.status).toBe(200);
   const saved = await prisma.event.findUniqueOrThrow({ where: { id: e.id } }); expect(saved.imageUrl).toBeNull(); expect(saved.ticketUrl).toBeNull();
 });
+it('blocks revoked and demoted owners even though their event ownership is unchanged', async () => {
+  const e = await make('revoked-owner');
+  for (const flags of [{ role: 'USER', verified: true }, { role: 'ORGANIZER', verified: false }]) {
+    session.current = { user: { id: ids.owner, ...flags } };
+    expect((await event.PATCH(req('PATCH', { title: 'Revoked write' }), params(e.id))).status).toBe(403);
+    expect((await event.DELETE(req('DELETE'), params(e.id))).status).toBe(403);
+    expect((await instances.POST(req('POST'), params(e.id))).status).toBe(403);
+  }
+  expect((await prisma.event.findUniqueOrThrow({ where: { id: e.id } })).title).toBe('revoked-owner');
+});

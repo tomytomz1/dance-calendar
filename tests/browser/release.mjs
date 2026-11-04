@@ -81,6 +81,15 @@ for (const who of ['other', 'user']) await check(`Real ${who} session cannot mut
   assert.deepEqual(await db.event.findUniqueOrThrow({ where: { id: before.id } }), before);
   await page.goto(`${base}/admin`); await page.waitForURL(url => !url.pathname.endsWith('/admin')); await c.close();
 });
+await check('Existing session loses event-write capability immediately after role or verification revocation', async () => {
+  try {
+    for (const flags of [{ role: 'USER', verified: true }, { role: 'ORGANIZER', verified: false }]) {
+      await db.user.update({ where: { id: ids.owner }, data: flags });
+      for (const [method, path, data] of [['patch', '/api/events/releaseqa-hoover-nov', { title: 'Revoked edit' }], ['delete', '/api/events/releaseqa-hoover-nov'], ['post', '/api/events/releaseqa-hoover-nov/instances']]) assert.equal((await owner.request[method](base + path, { data })).status(), 403);
+      const actual = await (await owner.request.get(base + '/api/auth/session')).json(); assert.equal(actual.user.role, flags.role); assert.equal(actual.user.verified, flags.verified);
+    }
+  } finally { await db.user.update({ where: { id: ids.owner }, data: { role: 'ORGANIZER', verified: true } }); }
+});
 await check('Real admin session approves a synthetic pending organizer', async () => {
   const c = await context(); await login(c, 'admin', '/admin'); const response = await c.request.post(base + `/api/admin/users/${ids.pending}/approve`); assert.equal(response.status(), 200); assert.equal((await db.user.findUniqueOrThrow({ where: { id: ids.pending } })).verified, true); await c.close();
 });
@@ -105,7 +114,9 @@ for (const width of [1440, 390]) {
     await authPage.goto(base + path); await authPage.addScriptTag({ path: axePath }); const report = await authPage.evaluate(async () => window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } })); const violations = report.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.slice(0, 5).map(n => ({ target: n.target, summary: n.failureSummary })) })); results.accessibility.push({ width, path, violations, incomplete: report.incomplete.map(v => v.id) }); assert.equal(violations.length, 0, JSON.stringify(violations).slice(0, 2000));
   }); await authContext.close();
 }
-await owner.close(); await browser.close(); server.kill('SIGTERM'); await db.$disconnect();
+await owner.close(); await browser.close();
+if (process.env.MDL_AUDIT_PERFORMANCE === '1') { const { measurePerformance } = await import('./performance.mjs'); results.performance = await measurePerformance(chromiumBinary, base); }
+server.kill('SIGTERM'); await db.$disconnect();
 await mkdir('public', { recursive: true }); await writeFile('public/qa-release-report.json', JSON.stringify(results, null, 2));
 for (const row of results.accessibility) if (row.violations.length) console.log('QA_AXE ' + JSON.stringify(row));
 console.log('QA_TIMEZONES ' + JSON.stringify(results.timezone));

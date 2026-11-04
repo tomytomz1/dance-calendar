@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EventForm } from "@/components/events/event-form";
+import { canManageEvents } from "@/lib/event-authorization";
 
 interface EditEventPageProps {
   params: Promise<{ id: string }>;
@@ -14,6 +15,7 @@ export default async function EditEventPage({ params }: EditEventPageProps) {
   if (!session) {
     redirect(`/login?callbackUrl=/organizer/events/${id}/edit`);
   }
+  if (!canManageEvents(session.user)) redirect('/organizer/events');
 
   const event = await prisma.event.findUnique({
     where: { id },
