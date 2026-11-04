@@ -93,7 +93,7 @@ export async function PATCH(
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { organizerId: true, status: true, startTime: true, endTime: true, isRecurring: true, recurrenceRule: true },
+      select: { organizerId: true, status: true, slug: true, startTime: true, endTime: true, isRecurring: true, recurrenceRule: true },
     });
 
     if (!event) {
@@ -134,7 +134,8 @@ export async function PATCH(
     delete eventData.status; // applied via nextStatus below
 
     let slug: string | null | undefined;
-    if (eventData.title) {
+    // Titles can change without invalidating shared links and cached listings.
+    if (eventData.title && !event.slug) {
       slug = await generateUniqueEventSlug(eventData.title);
     }
 

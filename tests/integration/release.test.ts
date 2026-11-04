@@ -115,3 +115,8 @@ it('blocks revoked and demoted owners even though their event ownership is uncha
   }
   expect((await prisma.event.findUniqueOrThrow({ where: { id: e.id } })).title).toBe('revoked-owner');
 });
+it('keeps a published event URL stable when its title changes', async () => {
+  const e = await make('stable-url'); await prisma.event.update({ where: { id: e.id }, data: { slug: `${run}-shared-link` } }); login('owner');
+  const r = await event.PATCH(req('PATCH', { title: 'Corrected event title' }), params(e.id)); expect(r.status).toBe(200);
+  expect((await r.json()).slug).toBe(`${run}-shared-link`);
+});

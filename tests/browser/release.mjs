@@ -27,8 +27,10 @@ server.stderr.on('data', chunk => { const text = chunk.toString(); if (/Error|er
 for (let i = 0; i < 100; i++) { try { if ((await fetch(base)).ok) break; } catch {} await new Promise(resolve => setTimeout(resolve, 300)); }
 const browser = await chromium.launch({ executablePath: await chromiumBinary.executablePath(), args: chromiumBinary.args.filter(arg => arg !== '--single-process'), headless: true });
 const check = async (name, fn) => { let row; try { await fn(); row = { name, status: 'PASS' }; } catch (error) { row = { name, status: 'FAIL', error: error.message.slice(0, 700) }; } results.checks.push(row); console.log('QA_CHECK ' + JSON.stringify(row)); };
+const authCookies = new Map();
 const context = async (options = {}) => {
   const c = await browser.newContext({ viewport: { width: 1440, height: 1000 }, ...options });
+  c.on('page', page => { page.on('pageerror', error => results.errors.push({ type: 'runtime', message: error.message })); page.on('response', r => { if (r.status() >= 500 && r.url().startsWith(base)) results.errors.push({ type: 'http', status: r.status(), path: new URL(r.url()).pathname }); }); });
   await c.route('**/*', route => { const u = new URL(route.request().url()); return u.origin === base ? route.continue() : route.abort(); });
   return c;
 };
@@ -37,13 +39,23 @@ const waitForTimeControls = page => page.waitForFunction(() => {
   return controls.length === 6 && controls.every(e => e.textContent.trim());
 });
 const login = async (c, who, destination = '/organizer/events') => {
-  const page = await c.newPage(); await page.goto(`${base}/login?callbackUrl=${encodeURIComponent(destination)}`);
+  const page = await c.newPage();
+  if (authCookies.has(who)) { await c.addCookies(authCookies.get(who)); await page.goto(`${base}${destination}`); if (destination.endsWith('/edit')) await waitForTimeControls(page); return page; }
+  await page.goto(`${base}/login?callbackUrl=${encodeURIComponent(destination)}`);
   await page.getByLabel('Email', { exact: true }).fill(`${ids[who]}@example.invalid`);
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.waitForURL(`${base}${destination}`, { timeout: 20000 }); if (destination.endsWith('/edit')) await waitForTimeControls(page); return page;
+  await page.waitForURL(`${base}${destination}`, { timeout: 20000 }); authCookies.set(who, await c.cookies()); if (destination.endsWith('/edit')) await waitForTimeControls(page); return page;
 };
 const select = async (page, name, option) => { await page.getByRole('combobox', { name, exact: true }).click(); await page.getByRole('option', { name: option, exact: true }).click(); };
+const submitEvent = async (page, name, path, method) => {
+  const response = page.waitForResponse(r => r.url().endsWith(path) && r.request().method() === method);
+  await page.getByRole('button', { name, exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Scheduling Conflict', exact: true });
+  const outcome = await Promise.race([response.then(() => 'response'), dialog.waitFor({ state: 'visible', timeout: 5000 }).then(() => 'dialog').catch(() => 'no-dialog')]);
+  if (outcome === 'dialog') await dialog.getByRole('button', { name: 'Continue', exact: true }).click();
+  return response;
+};
 const owner = await context(); let ownerPage;
 await check('Real credentials login and populated My Events', async () => { ownerPage = await login(owner, 'owner'); await ownerPage.getByText('Synthetic Recurring Edit', { exact: true }).waitFor(); });
 await check('Editor preserves non-quarter-hour minutes and saves optional URL clearing', async () => {
@@ -51,20 +63,16 @@ await check('Editor preserves non-quarter-hour minutes and saves optional URL cl
   assert.equal((await page.getByRole('combobox', { name: 'Start minute', exact: true }).innerText()).trim(), '20');
   await page.getByLabel('Ticket URL', { exact: true }).fill(''); await page.getByLabel('Event Image URL', { exact: true }).fill('');
   await page.getByLabel('Event Title', { exact: true }).fill('Synthetic Recurring Edited');
-  const response = page.waitForResponse(r => r.url().endsWith('/api/events/releaseqa-browser-series') && r.request().method() === 'PATCH');
-  await page.getByRole('button', { name: 'Update Event', exact: true }).click();
-  if (await page.getByRole('button', { name: 'Continue Anyway', exact: true }).isVisible()) await page.getByRole('button', { name: 'Continue Anyway', exact: true }).click();
-  assert.equal((await response).status(), 200); await page.waitForURL(`${base}/organizer/events`);
+  const response = await submitEvent(page, 'Update Event', '/api/events/releaseqa-browser-series', 'PATCH');
+  assert.equal(response.status(), 200); await page.waitForURL(`${base}/organizer/events`);
   const e = await db.event.findUniqueOrThrow({ where: { id: 'releaseqa-browser-series' }, include: { recurrenceRule: true } });
   assert.equal(e.imageUrl, null); assert.equal(e.ticketUrl, null); assert.equal(e.recurrenceRule.interval, 2); assert.deepEqual(e.recurrenceRule.daysOfWeek, [5]); assert.equal(e.recurrenceRule.count, 5); assert.equal(e.startTime.toISOString(), '2026-11-21T01:20:00.000Z');
 });
 await check('Actual saved form disables recurrence and removes future ordinary rows', async () => {
   const page = ownerPage; await page.goto(`${base}/organizer/events/releaseqa-browser-series/edit`); await waitForTimeControls(page);
   await page.getByRole('button', { name: 'Recurring Event', exact: true }).click();
-  const response = page.waitForResponse(r => r.url().endsWith('/api/events/releaseqa-browser-series') && r.request().method() === 'PATCH');
-  await page.getByRole('button', { name: 'Update Event', exact: true }).click();
-  if (await page.getByRole('button', { name: 'Continue Anyway', exact: true }).isVisible()) await page.getByRole('button', { name: 'Continue Anyway', exact: true }).click();
-  assert.equal((await response).status(), 200); assert.equal(await db.eventInstance.count({ where: { eventId: 'releaseqa-browser-series', isModified: false, isCancelled: false } }), 0);
+  const response = await submitEvent(page, 'Update Event', '/api/events/releaseqa-browser-series', 'PATCH');
+  assert.equal(response.status(), 200); assert.equal(await db.eventInstance.count({ where: { eventId: 'releaseqa-browser-series', isModified: false, isCancelled: false } }), 0);
 });
 await check('Real browser create form validates required values and saves a Michigan overnight event', async () => {
   const page = ownerPage; await page.goto(`${base}/organizer/events/new`); await waitForTimeControls(page);
@@ -74,8 +82,7 @@ await check('Real browser create form validates required values and saves a Mich
   await page.getByRole('button', { name: 'Start Date', exact: true }).click(); await page.getByRole('dialog', { name: 'Choose start date' }).getByRole('button', { name: /November 13/ }).click();
   await page.getByRole('button', { name: 'End Date', exact: true }).click(); await page.getByRole('dialog', { name: 'Choose end date' }).getByRole('button', { name: /November 14/ }).click();
   await select(page, 'Start hour', '9'); await select(page, 'Start minute', '20'); await select(page, 'Start AM/PM', 'PM'); await select(page, 'End hour', '1'); await select(page, 'End minute', '00'); await select(page, 'End AM/PM', 'AM');
-  const response = page.waitForResponse(r => r.url().endsWith('/api/events') && r.request().method() === 'POST'); await page.getByRole('button', { name: 'Create Event', exact: true }).click();
-  const r = await response; assert.equal(r.status(), 201); const e = await r.json(); assert.equal(e.startTime, '2026-11-14T02:20:00.000Z'); assert.equal(e.endTime, '2026-11-14T06:00:00.000Z');
+  const r = await submitEvent(page, 'Create Event', '/api/events', 'POST'); assert.equal(r.status(), 201); const e = await r.json(); assert.equal(e.startTime, '2026-11-14T02:20:00.000Z'); assert.equal(e.endTime, '2026-11-14T06:00:00.000Z');
 });
 for (const who of ['other', 'user']) await check(`Real ${who} session cannot mutate foreign events or read admin records`, async () => {
   const c = await context(); const page = await login(c, who, who === 'user' ? '/' : '/organizer/events');
@@ -94,6 +101,10 @@ await check('Existing session loses event-write capability immediately after rol
     }
   } finally { await db.user.update({ where: { id: ids.owner }, data: { role: 'ORGANIZER', verified: true } }); }
 });
+await check('Crafted login callback cannot navigate away from the application', async () => {
+  const c = await context(); const page = await c.newPage(); await page.goto(base + '/login?callbackUrl=' + encodeURIComponent('/\t/attacker.example.invalid'));
+  await page.getByLabel('Email', { exact: true }).fill(`${ids.user}@example.invalid`); await page.getByLabel('Password', { exact: true }).fill(password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.waitForURL(base + '/'); assert.equal(new URL(page.url()).origin, base); await c.close();
+});
 await check('Real admin session approves a synthetic pending organizer', async () => {
   const c = await context(); await login(c, 'admin', '/admin'); const response = await c.request.post(base + `/api/admin/users/${ids.pending}/approve`); assert.equal(response.status(), 200); assert.equal((await db.user.findUniqueOrThrow({ where: { id: ids.pending } })).verified, true); await c.close();
 });
@@ -105,7 +116,7 @@ for (const tz of ['America/Detroit', 'UTC', 'America/Los_Angeles', 'Asia/Tokyo']
   assert.match(await p.locator('main').innerText(), /8:30\s*PM/i);
   await p.goto(base + '/calendar'); await p.getByRole('button', { name: 'Next month', exact: true }).waitFor({ state: 'visible' });
   const day = p.getByRole('button', { name: /^Friday, November 13, 2026/ });
-  await day.click(); const chip = day.locator('..').getByRole('button', { name: /^Hoover St November Social QA,/ }); assert.equal(await chip.count(), 1); await chip.click();
+  await day.click(); const chip = day.locator('..').getByRole('button', { name: /Hoover St November Social QA/ }); assert.equal(await chip.count(), 1); await chip.click();
   const dialog = p.getByRole('dialog', { name: 'Hoover St November Social QA', exact: true }); await dialog.waitFor(); assert.match(await dialog.innerText(), /8:30\s*PM/i);
   await p.keyboard.press('Escape'); await dialog.waitFor({ state: 'hidden' });
   assert.ok(await chip.evaluate(e => e === document.activeElement));
@@ -128,6 +139,12 @@ for (const width of [1440, 390]) {
     const response = await page.goto(base + path); assert.ok(response.status() < 400); if (path === '/calendar' || (path === '/' && width >= 768)) await page.getByRole('button', { name: 'Next month', exact: true }).waitFor({ state: 'visible' }); await page.evaluate(() => document.fonts.ready); await page.waitForTimeout(700); await page.addScriptTag({ path: axePath });
     const report = await page.evaluate(async () => window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } }));
     const violations = report.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.slice(0, 5).map(n => ({ target: n.target, summary: n.failureSummary })) })); results.accessibility.push({ width, path, violations, incomplete: report.incomplete.map(v => v.id) }); assert.equal(violations.length, 0, JSON.stringify(violations).slice(0, 2000));
+    if (path === '/calendar') {
+      await page.getByRole('button', { name: 'Week', exact: true }).click(); await page.getByRole('button', { name: 'Next week', exact: true }).waitFor(); await page.waitForTimeout(700);
+      const weekReport = await page.evaluate(async () => window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } }));
+      const weekViolations = weekReport.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.slice(0, 5).map(n => ({ target: n.target, summary: n.failureSummary })) }));
+      results.accessibility.push({ width, path: '/calendar (week)', violations: weekViolations, incomplete: weekReport.incomplete.map(v => v.id) }); assert.equal(weekViolations.length, 0, JSON.stringify(weekViolations).slice(0, 2000));
+    }
   }); await c.close();
   const authContext = await context({ viewport: { width, height: 1000 } }); const authPage = await login(authContext, 'admin', '/admin');
   for (const path of ['/admin', '/organizer/events', '/organizer/events/new', '/organizer/events/releaseqa-hoover-nov/edit', '/profile']) await check(`authenticated axe ${width}px ${path}`, async () => {
