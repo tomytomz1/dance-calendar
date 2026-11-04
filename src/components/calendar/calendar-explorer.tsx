@@ -15,12 +15,18 @@ interface CalendarExplorerProps {
 export function CalendarExplorer({ events, error }: CalendarExplorerProps) {
   const [city, setCity] = useState("");
   const [style, setStyle] = useState("");
+  const [loadedAt] = useState(() => Date.now());
   const cities = useMemo(() => Array.from(new Set(events.map(event => event.city).filter(Boolean))).sort(), [events]);
   const styles = useMemo(() => Array.from(new Set(events.flatMap(event => event.danceStyles))).sort(), [events]);
   const visibleEvents = useMemo(() => events.filter(event =>
     (!city || event.city === city) &&
     (!style || event.danceStyles.includes(style))
   ), [events, city, style]);
+  const upcomingCount = useMemo(
+    () => visibleEvents.filter(event => new Date(event.end).getTime() >= loadedAt).length,
+    [visibleEvents, loadedAt]
+  );
+  const hasFilters = Boolean(city || style);
 
   const selectClasses = "h-12 w-full appearance-none rounded-full border border-[#755572] bg-[#23192D] px-5 pr-10 text-sm font-semibold text-[#FFF1E5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F46157]";
 
@@ -50,12 +56,13 @@ export function CalendarExplorer({ events, error }: CalendarExplorerProps) {
                 {styles.map(value => <option key={value} value={value}>{value}</option>)}
               </select>
             </label>
-            <button type="button" onClick={() => {setCity("");setStyle("");}} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#F46157] px-6 text-sm font-extrabold text-[#160E18] hover:bg-[#FF8179] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+            <button type="button" disabled={!hasFilters} onClick={() => {setCity("");setStyle("");}} className="inline-flex h-12 disabled:cursor-not-allowed disabled:opacity-60 items-center justify-center gap-2 rounded-full bg-[#F46157] px-6 text-sm font-extrabold text-[#160E18] hover:bg-[#FF8179] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
               <RotateCcw size={16}/> Clear filters
             </button>
           </div>
           <p role="status" aria-live="polite" className="mt-3 text-sm text-[#D8C8D6]">
-            {visibleEvents.length} {visibleEvents.length === 1 ? "event" : "events"} found{city ? " in " + city : ""}{style ? " · " + style : ""}
+            {upcomingCount} upcoming {upcomingCount === 1 ? "event" : "events"}{city ? " in " + city : ""}{style ? " · " + style : ""}
+            {hasFilters && upcomingCount === 0 && " — try another city or style, or clear the filters."}
           </p>
         </div>
       </section>

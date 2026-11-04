@@ -23,16 +23,16 @@ export function CalendarEventListItem({
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-lg border bg-background hover:bg-muted/50 transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "w-full rounded-xl border border-[#694E65] bg-[#1C1623] text-left transition-colors hover:border-[#F46157] hover:bg-[#291D30]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF8179]",
         compact ? "p-2.5 min-h-[44px]" : "p-3 min-h-[44px]",
         className
       )}
     >
       <div className="flex flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="font-medium truncate text-sm">{event.title}</h4>
-          <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+          <h4 className="min-w-0 truncate text-sm font-bold text-[#FFF1E5]">{event.title}</h4>
+          <span className="shrink-0 text-xs font-semibold tabular-nums text-[#FF9A93]">
             {format(new Date(event.start), "h:mm a")}
             {!compact && (
               <>
@@ -42,7 +42,7 @@ export function CalendarEventListItem({
             )}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-[#D2C0D0]">
           {event.venue}
           {event.city ? ` · ${event.city}` : ""}
         </p>

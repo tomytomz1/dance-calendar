@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { addWeeks, addMonths, subWeeks, subMonths } from "date-fns";
 import { CalendarHeader } from "./calendar-header";
 import { WeekView } from "./week-view";
@@ -9,14 +9,27 @@ import { MobileWeekView } from "./mobile-week-view";
 import { MobileMonthView } from "./mobile-month-view";
 import { EventDetailSheet } from "../events/event-detail-sheet";
 import type { CalendarEvent } from "@/lib/types";
+import { siteNow, toSiteWallClock } from "@/lib/timezone";
 
 interface EventCalendarProps {
   events: CalendarEvent[];
+  /** Michigan wall-clock date to open on (defaults to today in Michigan). */
   initialDate?: Date;
 }
 
-export function EventCalendar({ events, initialDate = new Date() }: EventCalendarProps) {
-  const [currentDate, setCurrentDate] = useState(initialDate);
+export function EventCalendar({ events: rawEvents, initialDate }: EventCalendarProps) {
+  // Bucket and label events in Michigan time for every visitor, wherever their
+  // device clock is set. The original instant is kept in occurrenceStart.
+  const events = useMemo(
+    () =>
+      rawEvents.map((event) => ({
+        ...event,
+        start: toSiteWallClock(event.start),
+        end: toSiteWallClock(event.end),
+      })),
+    [rawEvents]
+  );
+  const [currentDate, setCurrentDate] = useState(() => initialDate ?? siteNow());
   const [view, setView] = useState<"week" | "month">("month");
   const [direction, setDirection] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -38,7 +51,7 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
 
   const handleToday = useCallback(() => {
     setDirection(0);
-    setCurrentDate(new Date());
+    setCurrentDate(siteNow());
   }, []);
 
   const handleDateSelect = useCallback((date: Date) => {
@@ -62,7 +75,7 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
   );
 
   return (
-    <div className="flex flex-col bg-background md:h-full">
+    <div className="flex flex-col bg-[#191421] md:h-full">
       <CalendarHeader
         currentDate={currentDate}
         view={view}

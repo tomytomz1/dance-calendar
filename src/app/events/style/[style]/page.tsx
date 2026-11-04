@@ -12,7 +12,20 @@ import {
   SITE_NAME,
 } from "@/lib/seo";
 import { getFilteredHubListEvents } from "@/lib/home-events";
-import { buildPublicPageMetadata } from "@/lib/seo-metadata";
+import { buildPublicPageMetadata, NOINDEX_METADATA } from "@/lib/seo-metadata";
+import { DANCE_STYLES } from "@/lib/types";
+import { styleSlug } from "@/lib/seo";
+
+/**
+ * Styles with listed events, plus the standard style list (the homepage links
+ * to e.g. Swing and Ballroom even before an organizer lists one).
+ */
+function resolveStyle(styles: string[], slug: string): { name: string; listed: boolean } | null {
+  const listed = findStyleBySlug(styles, slug);
+  if (listed) return { name: listed, listed: true };
+  const known = DANCE_STYLES.find((style) => style !== "Other" && styleSlug(style) === slug);
+  return known ? { name: known, listed: false } : null;
+}
 
 export const revalidate = 600;
 export const dynamicParams = true;
@@ -26,27 +39,33 @@ export async function generateMetadata({
 }: StylePageProps): Promise<Metadata> {
   const { style: styleParam } = await params;
   const styles = await getDistinctDanceStyles();
-  const styleName = findStyleBySlug(styles, styleParam);
+  const style = resolveStyle(styles, styleParam);
 
-  if (!styleName) {
+  if (!style) {
     return { title: "Style Not Found" };
   }
+  const styleName = style.name;
 
-  return buildPublicPageMetadata({
+  return {
+    ...buildPublicPageMetadata({
     title: `${styleName} Dance Events in Michigan`,
     description: `Find upcoming ${styleName} dance events, socials, and classes across Michigan on ${SITE_NAME}.`,
     path: `/events/style/${styleParam}`,
-  });
+    }),
+    // No listings yet: keep the page useful for visitors but out of search results.
+    ...(style.listed ? {} : NOINDEX_METADATA),
+  };
 }
 
 export default async function StyleEventsPage({ params }: StylePageProps) {
   const { style: styleParam } = await params;
   const styles = await getDistinctDanceStyles();
-  const styleName = findStyleBySlug(styles, styleParam);
+  const style = resolveStyle(styles, styleParam);
 
-  if (!styleName) {
+  if (!style) {
     notFound();
   }
+  const styleName = style.name;
 
   const events = await getFilteredHubListEvents({ styleSlug: styleParam });
 
@@ -60,19 +79,20 @@ export default async function StyleEventsPage({ params }: StylePageProps) {
       />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-6 max-w-3xl">
-        <nav className="text-sm text-muted-foreground mb-4">
-          <Link href="/" className="hover:text-primary">
+        <nav aria-label="Breadcrumb" className="mb-4 text-sm text-[#CDBDCA]">
+          <Link href="/" className="hover:text-[#FF8C83]">
             Home
           </Link>
           {" · "}
-          <Link href="/events" className="hover:text-primary">
+          <Link href="/events" className="hover:text-[#FF8C83]">
             Events
           </Link>
         </nav>
-        <h1 className="text-2xl font-bold mb-2">
+        <p className="text-xs font-bold uppercase tracking-[.2em] text-[#FF9189]">Dance style</p>
+        <h1 className="mt-2 mb-3 font-display text-3xl font-extrabold tracking-tight text-[#FFF1E5] sm:text-4xl">
           {styleName} Dance Events in Michigan
         </h1>
-        <p className="text-muted-foreground mb-6">
+        <p className="mb-6 text-[#D9C6D4]">
           Browse upcoming {styleName} nights and socials statewide on{" "}
           {SITE_NAME}.
         </p>

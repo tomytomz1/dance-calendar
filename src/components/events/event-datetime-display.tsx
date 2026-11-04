@@ -1,7 +1,4 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { format } from "date-fns";
+import { formatInSiteTimeZone } from "@/lib/timezone";
 
 interface EventDateTimeDisplayProps {
   startTime: string;
@@ -9,26 +6,21 @@ interface EventDateTimeDisplayProps {
   variant: "date" | "time";
 }
 
-export function EventDateTimeDisplay({
-  startTime,
-  endTime,
-  variant,
-}: EventDateTimeDisplayProps) {
-  const [formatted, setFormatted] = useState<string | null>(null);
-
-  useEffect(() => {
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    if (variant === "date") {
-      setFormatted(format(start, "EEEE, MMMM d, yyyy"));
-    } else {
-      setFormatted(`${format(start, "h:mm a")} - ${format(end, "h:mm a")}`);
-    }
-  }, [startTime, endTime, variant]);
-
+/**
+ * Event date or time range in Michigan time. Deterministic on server and
+ * client, so it renders into the HTML (no hydration flash or mismatch).
+ */
+export function EventDateTimeDisplay({ startTime, endTime, variant }: EventDateTimeDisplayProps) {
+  if (variant === "date") {
+    return (
+      <time dateTime={startTime}>{formatInSiteTimeZone(startTime, "EEEE, MMMM d, yyyy")}</time>
+    );
+  }
   return (
-    <span suppressHydrationWarning>
-      {formatted ?? "\u00A0"}
+    <span>
+      <time dateTime={startTime}>{formatInSiteTimeZone(startTime, "h:mm a")}</time>
+      {" – "}
+      <time dateTime={endTime}>{formatInSiteTimeZone(endTime, "h:mm a")}</time>
     </span>
   );
 }

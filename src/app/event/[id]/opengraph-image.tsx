@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
-import { prisma } from "@/lib/prisma";
-import { formatEventDateForMeta } from "@/lib/seo";
+import { formatEventDateForMeta, normalizeCityName } from "@/lib/seo";
+import { getApprovedEventByIdOrSlug, resolveEventOccurrence } from "@/lib/event-detail";
+import { formatInSiteTimeZone } from "@/lib/timezone";
 
 export const alt = "Dance event";
 export const size = { width: 1200, height: 630 };
@@ -12,22 +13,7 @@ interface Props {
 
 export default async function EventOpenGraphImage({ params }: Props) {
   const { id: idOrSlug } = await params;
-
-  const rows = await prisma.$queryRaw<
-    {
-      title: string;
-      venue: string;
-      city: string;
-      startTime: Date;
-      danceStyles: string[];
-    }[]
-  >`SELECT "title", "venue", "city", "startTime", "danceStyles"
-    FROM "Event"
-    WHERE ("id" = ${idOrSlug} OR "slug" = ${idOrSlug})
-      AND "status" = 'APPROVED'
-    LIMIT 1`;
-
-  const event = rows[0];
+  const event = await getApprovedEventByIdOrSlug(idOrSlug);
 
   if (!event) {
     return new ImageResponse(
@@ -39,20 +25,23 @@ export default async function EventOpenGraphImage({ params }: Props) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "#5b21b6",
-            color: "white",
+            background: "linear-gradient(135deg, #0D101B 0%, #27192E 62%, #553045 100%)",
+            color: "#FFF1E5",
             fontSize: 48,
+            fontWeight: 800,
+            letterSpacing: 6,
             fontFamily: "system-ui",
           }}
         >
-          MichiganDance.Life
+          MICHIGAN DANCE LIFE
         </div>
       ),
       { ...size }
     );
   }
 
-  const dateLabel = formatEventDateForMeta(new Date(event.startTime));
+  const { start } = resolveEventOccurrence(event);
+  const dateLabel = `${formatEventDateForMeta(start)} · ${formatInSiteTimeZone(start, "h:mm a")}`;
   const styles = event.danceStyles.slice(0, 4).join(" · ");
 
   return new ImageResponse(
@@ -64,34 +53,37 @@ export default async function EventOpenGraphImage({ params }: Props) {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          padding: 56,
-          background: "linear-gradient(160deg, #4c1d95 0%, #6d28d9 45%, #8b5cf6 100%)",
-          color: "white",
+          padding: 64,
+          background: "linear-gradient(135deg, #0D101B 0%, #27192E 62%, #553045 100%)",
+          color: "#FFF1E5",
           fontFamily: "system-ui, sans-serif",
         }}
       >
-        <div style={{ fontSize: 28, opacity: 0.9 }}>MichiganDance.Life</div>
-        <div>
+        <div style={{ display: "flex", fontSize: 24, fontWeight: 700, color: "#F46157", letterSpacing: 5 }}>
+          MICHIGAN DANCE LIFE
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
-              fontSize: 52,
-              fontWeight: 700,
-              lineHeight: 1.15,
-              marginBottom: 20,
-              maxHeight: 220,
+              display: "flex",
+              fontSize: 60,
+              fontWeight: 800,
+              lineHeight: 1.1,
+              letterSpacing: -1.5,
+              marginBottom: 24,
+              maxHeight: 210,
               overflow: "hidden",
             }}
           >
             {event.title}
           </div>
-          <div style={{ fontSize: 30, marginBottom: 12 }}>{dateLabel}</div>
-          <div style={{ fontSize: 26, opacity: 0.95 }}>
-            {event.venue} · {event.city}, MI
+          <div style={{ width: 160, height: 7, borderRadius: 10, background: "#F46157", marginBottom: 24 }} />
+          <div style={{ display: "flex", fontSize: 32, fontWeight: 700, marginBottom: 10 }}>{dateLabel}</div>
+          <div style={{ display: "flex", fontSize: 28, opacity: 0.9 }}>
+            {event.venue} · {normalizeCityName(event.city)}, MI
           </div>
           {styles ? (
-            <div style={{ fontSize: 22, marginTop: 16, opacity: 0.85 }}>
-              {styles}
-            </div>
+            <div style={{ display: "flex", fontSize: 24, marginTop: 16, color: "#FFB3AD" }}>{styles}</div>
           ) : null}
         </div>
       </div>

@@ -5,7 +5,7 @@ import type { CalendarEvent } from "@/lib/types";
 
 function CalendarSkeleton() {
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)]">
+    <div className="flex min-h-[520px] flex-col" aria-busy="true" aria-label="Loading calendar">
       <div className="p-4 space-y-3 border-b">
         <div className="h-7 w-48 bg-muted animate-pulse rounded" />
         <div className="flex gap-2">

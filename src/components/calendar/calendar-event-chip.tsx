@@ -12,7 +12,8 @@ import type { CalendarEvent } from "@/lib/types";
 interface CalendarEventChipProps {
   event: CalendarEvent;
   variant: "month" | "week" | "month-compact";
-  onClick: (e: React.MouseEvent) => void;
+  /** Omit for the compact (mobile) variant: the whole day cell is the tap target. */
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 export function CalendarEventChip({
@@ -61,13 +62,25 @@ export function CalendarEventChip({
   const isMonth = variant === "month";
   const isCompact = variant === "month-compact";
 
-  const label = isCompact
-    ? event.title.length > 8
-      ? `${event.title.slice(0, 7)}…`
-      : event.title
-    : isMonth
-      ? `${timeShort} ${event.title}`
-      : event.title;
+  if (isCompact) {
+    // Decorative on phones: a 16px chip is too small to tap reliably, so taps
+    // fall through to the day cell, which selects the day and shows its agenda.
+    return (
+      <div
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none flex h-4 w-full min-w-0 max-w-full items-center overflow-hidden rounded-full px-1",
+          chipClasses
+        )}
+      >
+        <span className="block w-full truncate text-[10px] font-semibold leading-none">
+          {event.title}
+        </span>
+      </div>
+    );
+  }
+
+  const label = isMonth ? `${timeShort} ${event.title}` : event.title;
 
   return (
     <div
@@ -76,33 +89,24 @@ export function CalendarEventChip({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {showPreview && !isCompact && previewContent}
-      <div
-        role="button"
-        tabIndex={0}
+      {showPreview && previewContent}
+      <button
+        type="button"
         onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            (e.target as HTMLElement).click();
-          }
-        }}
-        title={`${event.title} – ${format(new Date(event.start), "h:mm a")} at ${event.venue}`}
+        aria-label={`${event.title}, ${format(new Date(event.start), "h:mm a")} at ${event.venue}`}
         className={cn(
-          "cursor-pointer rounded-full transition-colors text-left overflow-hidden",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "cursor-pointer rounded-full text-left overflow-hidden transition-colors",
+          "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#FFF1E5]",
           chipClasses,
-          isCompact
-            ? "w-full min-w-0 max-w-full px-1 py-0.5 h-4 flex items-center"
-            : isMonth
-              ? "w-full min-w-0 max-w-full px-1.5 py-0.5 min-h-[20px] flex items-center"
-              : "w-full h-6 px-2 flex items-center"
+          isMonth
+            ? "flex min-h-[20px] w-full min-w-0 max-w-full items-center px-1.5 py-0.5"
+            : "flex h-6 w-full items-center px-2"
         )}
       >
         <span className="truncate block w-full text-xs font-medium">
           {label}
         </span>
-      </div>
+      </button>
     </div>
   );
 }
