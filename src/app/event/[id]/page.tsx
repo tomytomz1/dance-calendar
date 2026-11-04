@@ -31,6 +31,7 @@ import {
 import { safeHttpOrHttpsUrl } from "@/lib/safe-external-url";
 import { danceImageForStyles, organizerImageUrl } from "@/lib/dance-images";
 import { getApprovedEventByIdOrSlug, resolveEventOccurrence } from "@/lib/event-detail";
+import { normalizeVenueName } from "@/lib/city-name";
 import { buildGoogleMapsUrl } from "@/lib/maps-url";
 import { EventShareButton } from "@/components/events/event-share-button";
 import { SiteFooter } from "@/components/layout/site-footer";
@@ -49,13 +50,14 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
   }
 
   const city = normalizeCityName(event.city);
+  const venue = normalizeVenueName(event.venue);
   const { start } = resolveEventOccurrence(event);
   const path = getEventPath(event);
   const dateLabel = formatEventDateForMeta(start);
-  const title = `${event.title} — ${dateLabel} at ${event.venue}, ${city}`;
+  const title = `${event.title} — ${dateLabel} at ${venue}, ${city}`;
   const description =
     event.description?.trim() ||
-    `Join us for ${event.title} at ${event.venue} in ${city}, Michigan on ${dateLabel}.`;
+    `Join us for ${event.title} at ${venue} in ${city}, Michigan on ${dateLabel}.`;
 
   const image = organizerImageUrl(event.imageUrl);
 
@@ -90,6 +92,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
 
   const { start: displayStart, end: displayEnd } = resolveEventOccurrence(event, instanceParam);
   const city = normalizeCityName(event.city);
+  const venue = normalizeVenueName(event.venue);
   const organizerImage = organizerImageUrl(event.imageUrl);
   const safeTicketUrl = safeHttpOrHttpsUrl(event.ticketUrl);
 
@@ -98,7 +101,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
     slug: event.slug,
     title: event.title,
     description: event.description,
-    venue: event.venue,
+    venue,
     address: event.address,
     city: event.city,
     danceStyles: event.danceStyles,
@@ -154,7 +157,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
             <EventCoverImage
               src={organizerImage}
               fallbackSrc={danceImageForStyles(event.danceStyles)}
-              alt={`${event.title} dance event at ${event.venue}, ${city}`}
+              alt={`${event.title} dance event at ${venue}, ${city}`}
               width={1200}
               height={675}
               loading="eager"
@@ -223,7 +226,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
             <div className="flex items-start gap-3">
               <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#F46157]" aria-hidden="true" />
               <div>
-                <p className="font-semibold text-[#FFF1E5]">{event.venue}</p>
+                <p className="font-semibold text-[#FFF1E5]">{venue}</p>
                 <p className="text-sm text-[#D9C6D4]">{event.address}</p>
                 <p className="text-sm text-[#D9C6D4]">{city}, Michigan</p>
                 <a
@@ -248,7 +251,7 @@ export default async function EventPage({ params, searchParams }: EventPageProps
           <div className="flex flex-col gap-3 sm:flex-row">
             <EventShareButton
               title={event.title}
-              venue={event.venue}
+              venue={venue}
               url={shareUrl}
               className="h-12 flex-1 rounded-full border-[#875D7D]"
             />

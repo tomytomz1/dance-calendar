@@ -133,6 +133,8 @@ export function WeekView({
             date={currentDate}
             events={getEventsForDay(currentDate)}
             onEventClick={onEventClick}
+            allEvents={events}
+            onDateSelect={onDateSelect}
             emptyHint="Pick another day this week, or use the arrows to see the next week."
           />
         </motion.div>

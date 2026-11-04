@@ -12,12 +12,22 @@ const styleImages: Record<string, string> = {
   ballroom: "/dance/event-ballroom.webp",
   waltz: "/dance/event-ballroom.webp",
 };
-export function danceImageForStyles(styles: string[]): string {
-  for (const style of styles) {
-    const result = styleImages[style.toLowerCase()];
-    if (result) return result;
+const DEFAULT_IMAGE = "/dance/event-beginner-class.webp";
+
+/**
+ * Illustrative art for an event's styles. Pass `avoid` (images already used
+ * nearby, e.g. in the same card row) to prefer a different matching style.
+ */
+export function danceImageForStyles(styles: string[], avoid?: ReadonlySet<string>): string {
+  const matches = styles
+    .map((style) => styleImages[style.toLowerCase()])
+    .filter((image): image is string => Boolean(image));
+  if (avoid) {
+    const fresh = matches.find((image) => !avoid.has(image));
+    if (fresh) return fresh;
+    if (!avoid.has(DEFAULT_IMAGE)) return DEFAULT_IMAGE;
   }
-  return "/dance/event-beginner-class.webp";
+  return matches[0] ?? DEFAULT_IMAGE;
 }
 
 const IMAGE_EXTENSION = /\.(?:avif|gif|jpe?g|png|webp)$/i;
@@ -38,7 +48,10 @@ const IMAGE_HOSTS = [
  * Only treat the value as a photo when it plausibly points at an image file;
  * otherwise callers fall back to the illustrative category art.
  */
-export function organizerImageUrl(raw: string | null | undefined): string | null {
+export function organizerImageUrl(
+  raw: string | null | undefined,
+  now: number = Date.now()
+): string | null {
   if (!raw?.trim()) return null;
   let url: URL;
   try {
@@ -50,5 +63,15 @@ export function organizerImageUrl(raw: string | null | undefined): string | null
   const looksLikeImage =
     IMAGE_EXTENSION.test(url.pathname) ||
     IMAGE_HOSTS.some((host) => host.test(url.hostname));
-  return looksLikeImage ? url.toString() : null;
+  if (!looksLikeImage) return null;
+  if (isExpiredSignedFacebookUrl(url, now)) return null;
+  return url.toString();
+}
+
+/** Facebook CDN links are signed; `oe` is the hex Unix expiry, after which they return 403. */
+function isExpiredSignedFacebookUrl(url: URL, now: number): boolean {
+  if (!/(^|\.)(fbcdn\.net|cdninstagram\.com)$/i.test(url.hostname)) return false;
+  const oe = url.searchParams.get("oe");
+  if (!oe || !/^[0-9a-f]{6,10}$/i.test(oe)) return false;
+  return parseInt(oe, 16) * 1000 < now;
 }

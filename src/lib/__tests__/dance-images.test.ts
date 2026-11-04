@@ -15,6 +15,15 @@ describe("organizerImageUrl", () => {
     ).toContain("fbcdn.net");
   });
 
+  it("drops expired signed Facebook CDN links", () => {
+    const base = "https://scontent-det1-1.xx.fbcdn.net/v/t39.30808-6/1_n.jpg?_nc_cat=103&oh=00_abc";
+    const now = Date.parse("2026-11-04T00:00:00Z");
+    const expired = (Date.parse("2026-04-05T00:00:00Z") / 1000).toString(16);
+    const valid = (Date.parse("2026-12-01T00:00:00Z") / 1000).toString(16);
+    expect(organizerImageUrl(`${base}&oe=${expired}`, now)).toBeNull();
+    expect(organizerImageUrl(`${base}&oe=${valid}`, now)).toContain("fbcdn.net");
+  });
+
   it("rejects non-http values", () => {
     expect(organizerImageUrl("javascript:alert(1)")).toBeNull();
     expect(organizerImageUrl("not a url")).toBeNull();
@@ -26,5 +35,12 @@ describe("danceImageForStyles", () => {
   it("picks the first style with art and falls back to the class photo", () => {
     expect(danceImageForStyles(["Other", "Bachata"])).toBe("/dance/event-bachata.webp");
     expect(danceImageForStyles(["Zouk"])).toBe("/dance/event-beginner-class.webp");
+  });
+
+  it("varies the art when told which images are already used", () => {
+    const used = new Set(["/dance/event-salsa.webp"]);
+    expect(danceImageForStyles(["Salsa", "Bachata"], used)).toBe("/dance/event-bachata.webp");
+    used.add("/dance/event-bachata.webp");
+    expect(danceImageForStyles(["Salsa", "Bachata"], used)).toBe("/dance/event-beginner-class.webp");
   });
 });

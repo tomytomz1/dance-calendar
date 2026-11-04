@@ -12,7 +12,7 @@ import {
   type SeoEventRecord,
 } from "@/lib/seo";
 import type { CalendarEvent } from "@/lib/types";
-import { normalizeCityName } from "@/lib/city-name";
+import { normalizeCityName, normalizeVenueName } from "@/lib/city-name";
 
 const seoEventSelect = {
   id: true,
@@ -56,7 +56,7 @@ function toListRecord(
     slug: event.slug,
     title: event.title,
     description: event.description,
-    venue: event.venue,
+    venue: normalizeVenueName(event.venue),
     address: event.address,
     city: normalizeCityName(event.city),
     danceStyles: event.danceStyles,
@@ -82,7 +82,7 @@ function expandEvent(
   const baseCalendar = {
     id: event.id,
     title: event.title,
-    venue: event.venue,
+    venue: normalizeVenueName(event.venue),
     city: normalizeCityName(event.city),
     danceStyles: event.danceStyles,
     status: event.status,

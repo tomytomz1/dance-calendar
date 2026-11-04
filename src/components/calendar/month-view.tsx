@@ -103,7 +103,7 @@ export function MonthView({ currentDate, events, direction, onDateSelect, onEven
               })}
             </div>
           </div>
-          <SelectedDayAgenda date={currentDate} events={selectedDayEvents} onEventClick={onEventClick} />
+          <SelectedDayAgenda date={currentDate} events={selectedDayEvents} onEventClick={onEventClick} allEvents={events} onDateSelect={onDateSelect} />
         </motion.div>
       </AnimatePresence>
     </div>

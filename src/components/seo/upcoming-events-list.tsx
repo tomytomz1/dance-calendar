@@ -19,7 +19,7 @@ export function UpcomingEventsList({ events, heading = "Upcoming dance events", 
       <h2 id={listId} className="font-display mb-5 text-2xl font-extrabold tracking-tight text-[#FFF1E5]">{heading}</h2>
       {events.length === 0 ? (
         <div className="rounded-2xl border border-white/15 bg-white/5 p-8 text-[#D7C5D2]">
-          No upcoming events listed yet. Organizers can <Link className="text-[#FF8C83] underline underline-offset-4" href="/register">list an event</Link>.
+          No upcoming events listed yet. Browse the <Link className="text-[#FF8C83] underline underline-offset-4" href="/calendar">full dance calendar</Link>, or organizers can <Link className="text-[#FF8C83] underline underline-offset-4" href="/register">list an event</Link>.
         </div>
       ) : (
         <ul className="space-y-4">

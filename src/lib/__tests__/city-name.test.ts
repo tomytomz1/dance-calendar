@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeCityName } from "@/lib/city-name";
+import { normalizeCityName, normalizeVenueName } from "@/lib/city-name";
 import { citySlug, deriveCitiesFromEvents } from "@/lib/seo";
 
 describe("normalizeCityName", () => {
@@ -24,5 +24,16 @@ describe("normalizeCityName", () => {
     expect(
       deriveCitiesFromEvents([{ city: "Troy" }, { city: "Troy, MI 48083" }, { city: "Troy " }])
     ).toEqual(["Troy"]);
+  });
+});
+
+describe("normalizeVenueName", () => {
+  it.each([
+    ["Polish American Cultural Center: ", "Polish American Cultural Center"],
+    ["The Phoenix Center ", "The Phoenix Center"],
+    ["M&A DanceLab Studio", "M&A DanceLab Studio"],
+    ["Club 23 -", "Club 23"],
+  ])("%s → %s", (input, expected) => {
+    expect(normalizeVenueName(input)).toBe(expected);
   });
 });

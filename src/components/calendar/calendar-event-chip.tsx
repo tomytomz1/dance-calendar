@@ -27,7 +27,9 @@ export function CalendarEventChip({
 
   const primaryStyle = getPrimaryDanceStyle(event.danceStyles);
   const { chip: chipClasses } = getStyleChipClasses(primaryStyle);
-  const timeShort = format(new Date(event.start), "ha").toLowerCase();
+  const start = new Date(event.start);
+  // "8pm" on the hour, "8:30pm" otherwise — never round a start time away.
+  const timeShort = format(start, start.getMinutes() ? "h:mma" : "ha").toLowerCase();
 
   const handleMouseEnter = () => {
     timeoutRef.current = setTimeout(() => setShowPreview(true), 400);

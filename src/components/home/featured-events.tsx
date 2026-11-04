@@ -12,6 +12,13 @@ interface FeaturedEventsProps {
 
 export function FeaturedEvents({ events }: FeaturedEventsProps) {
   const featured = events.slice(0, 4);
+  // Most socials list Salsa first; vary the illustrative art across the row.
+  const usedArt = new Set<string>();
+  const artFor = (styles: string[]) => {
+    const image = danceImageForStyles(styles, usedArt);
+    usedArt.add(image);
+    return image;
+  };
 
   return (
     <section className="relative mx-auto w-full max-w-7xl px-5 py-14 sm:px-8 lg:px-10" aria-labelledby="featured-title">
@@ -40,7 +47,7 @@ export function FeaturedEvents({ events }: FeaturedEventsProps) {
                     {/* The fallback art is illustrative, not a photo of this specific event. */}
                     <EventCoverImage
                       src={organizerImageUrl(event.imageUrl)}
-                      fallbackSrc={danceImageForStyles(event.danceStyles)}
+                      fallbackSrc={artFor(event.danceStyles)}
                       alt={"Event image for " + event.title}
                       width={600}
                       height={400}

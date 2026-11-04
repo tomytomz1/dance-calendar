@@ -17,3 +17,10 @@ export function normalizeCityName(raw: string | null | undefined): string {
     .trim();
   return withoutSuffix || collapsed;
 }
+
+/** Trim stray whitespace and trailing punctuation, e.g. "Polish American Cultural Center: ". */
+export function normalizeVenueName(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const collapsed = raw.replace(/\s+/g, " ").trim();
+  return collapsed.replace(/[\s:;,\-–—]+$/, "").trim() || collapsed;
+}
