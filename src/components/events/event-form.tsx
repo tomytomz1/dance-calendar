@@ -48,6 +48,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DANCE_STYLES, RECURRENCE_FREQUENCY_LABELS } from "@/lib/types";
 import { ConflictWarning } from "./conflict-warning";
+import { eventFormRecurrence } from "@/lib/event-form-recurrence";
+import { parseTimeTo12Hour, toHHmm } from "@/lib/event-time";
 import type { Event, RecurrenceRule } from "@prisma/client";
 
 const eventFormSchema = z.object({
@@ -87,36 +89,8 @@ const eventFormSchema = z.object({
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
 const HOUR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const MINUTE_OPTIONS = ["00", "15", "30", "45"];
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, "0"));
 const PERIOD_OPTIONS = ["AM", "PM"] as const;
-
-function parseTimeTo12Hour(hhmm: string): {
-  hour: number;
-  minute: string;
-  period: "AM" | "PM";
-} {
-  const [h, m] = (hhmm || "00:00").split(":").map(Number);
-  const h24 = h ?? 0;
-  const min = m ?? 0;
-  const minute = ["00", "15", "30", "45"][Math.round(min / 15) % 4] ?? "00";
-  if (h24 === 0)
-    return { hour: 12, minute, period: "AM" };
-  if (h24 === 12)
-    return { hour: 12, minute, period: "PM" };
-  if (h24 < 12)
-    return { hour: h24, minute, period: "AM" };
-  return { hour: h24 - 12, minute, period: "PM" };
-}
-
-function toHHmm(hour: number, minute: string, period: "AM" | "PM"): string {
-  let h24: number;
-  if (period === "AM") {
-    h24 = hour === 12 ? 0 : hour;
-  } else {
-    h24 = hour === 12 ? 12 : hour + 12;
-  }
-  return `${h24.toString().padStart(2, "0")}:${minute}`;
-}
 
 interface EventFormProps {
   event?: Event & { recurrenceRule?: RecurrenceRule | null };
@@ -230,12 +204,7 @@ export function EventForm({ event, mode }: EventFormProps) {
     const startDateTime = fromSiteWallClock(data.startDate, data.startTime);
     const endDateTime = fromSiteWallClock(data.endDate, data.endTime);
 
-    const hasExistingRecurrence = !!event?.recurrenceRule;
-    const effectiveRecurrenceFrequency =
-      data.recurrenceFrequency ?? event?.recurrenceRule?.frequency;
-    const shouldSendRecurrence =
-      (data.isRecurring || hasExistingRecurrence) &&
-      !!effectiveRecurrenceFrequency;
+    const recurrence = eventFormRecurrence(data, event?.recurrenceRule);
 
     const payload = {
       title: data.title,
@@ -246,32 +215,11 @@ export function EventForm({ event, mode }: EventFormProps) {
       city: data.city,
       startTime: startDateTime.toISOString(),
       endTime: endDateTime.toISOString(),
-      imageUrl: data.imageUrl || undefined,
-      ticketUrl: data.ticketUrl || undefined,
+      imageUrl: data.imageUrl || "",
+      ticketUrl: data.ticketUrl || "",
       price: data.price,
       isRecurring: data.isRecurring,
-      ...(shouldSendRecurrence &&
-        effectiveRecurrenceFrequency && {
-          recurrence: {
-            frequency: effectiveRecurrenceFrequency,
-            interval: 1,
-            until: data.recurrenceUntil ? fromSiteWallClock(data.recurrenceUntil).toISOString() : undefined,
-            ...(effectiveRecurrenceFrequency === "MONTHLY" && {
-              monthlyPattern:
-                data.monthlyPattern ??
-                event?.recurrenceRule?.monthlyPattern ??
-                "BY_DATE",
-              monthlyDayOfWeek:
-                data.monthlyDayOfWeek ??
-                event?.recurrenceRule?.monthlyDayOfWeek ??
-                undefined,
-              monthlyWeeks:
-                data.monthlyWeeks ??
-                event?.recurrenceRule?.monthlyWeeks ??
-                undefined,
-            }),
-          },
-        }),
+      ...(recurrence && { recurrence }),
     };
 
     try {

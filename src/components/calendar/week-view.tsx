@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
+import { indexCalendarEvents, calendarDayKey } from "@/lib/calendar-event-days";
 import { isSiteToday } from "@/lib/timezone";
 import { CalendarEventChip } from "./calendar-event-chip";
 import { SelectedDayAgenda } from "./selected-day-agenda";
@@ -35,8 +38,8 @@ export function WeekView({
     else if (info.offset.x < -60) onSwipe(1);
   };
 
-  const getEventsForDay = (date: Date) =>
-    events.filter((event) => isSameDay(new Date(event.start), date));
+  const eventDays = useMemo(() => indexCalendarEvents(events), [events]);
+  const getEventsForDay = (date: Date) => eventDays.get(calendarDayKey(date)) ?? [];
 
   const variants = {
     enter: (value: number) => ({ x: value > 0 ? "30%" : "-30%", opacity: 0 }),
@@ -81,7 +84,7 @@ export function WeekView({
                       onClick={() => onDateSelect(day)}
                       aria-pressed={selected}
                       aria-label={
-                        format(day, "EEEE, MMMM d, yyyy") +
+                        format(day, "EEE d") + ", " + format(day, "EEEE, MMMM d, yyyy") +
                         (today ? ", today" : "") +
                         (dayEvents.length
                           ? `, ${dayEvents.length} ${dayEvents.length === 1 ? "event" : "events"}`

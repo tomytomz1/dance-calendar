@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent, getUpcomingInstances } from "@/lib/recurrence";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
+import { canManageEvents } from "@/lib/event-authorization";
 
 export async function GET(
   request: Request,
@@ -59,6 +60,9 @@ export async function POST(
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!canManageEvents(session.user)) {
+      return NextResponse.json({ error: "Verified organizer access is required" }, { status: 403 });
     }
 
     const event = await prisma.event.findUnique({

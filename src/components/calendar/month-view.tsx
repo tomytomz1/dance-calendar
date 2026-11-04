@@ -1,11 +1,13 @@
 "use client";
 
+import { useMemo } from "react";
 import { motion, AnimatePresence, type PanInfo } from "framer-motion";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addDays, isSameMonth, isSameDay,
 } from "date-fns";
 import { cn } from "@/lib/utils";
+import { indexCalendarEvents, calendarDayKey } from "@/lib/calendar-event-days";
 import { isSiteToday } from "@/lib/timezone";
 import { CalendarEventChip } from "./calendar-event-chip";
 import { SelectedDayAgenda } from "./selected-day-agenda";
@@ -27,7 +29,8 @@ export function MonthView({ currentDate, events, direction, onDateSelect, onEven
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const calendarDays: Date[] = [];
   for (let d = calendarStart; d <= calendarEnd; d = addDays(d, 1)) calendarDays.push(d);
-  const eventsForDay = (date: Date) => events.filter(event => isSameDay(new Date(event.start), date));
+  const eventDays = useMemo(() => indexCalendarEvents(events), [events]);
+  const eventsForDay = (date: Date) => eventDays.get(calendarDayKey(date)) ?? [];
   const selectedDayEvents = eventsForDay(currentDate);
   const variants = {
     enter: (value: number) => ({ x: value > 0 ? "30%" : "-30%", opacity: 0 }),

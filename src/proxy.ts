@@ -27,10 +27,11 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
+  // Match Auth.js v5's precedence when both current and legacy names exist.
+  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
   if (!secret) {
     console.error("proxy: NEXTAUTH_SECRET/AUTH_SECRET is not set");
-    return res;
+    return new NextResponse("Authentication is unavailable", { status: 503 });
   }
 
   // Auth.js v5 (next-auth@5 beta) getToken does NOT auto-detect HTTPS;

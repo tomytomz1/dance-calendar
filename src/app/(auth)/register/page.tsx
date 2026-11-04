@@ -127,7 +127,7 @@ export default function RegisterPage() {
                 <p className="text-sm text-muted-foreground">
                   Create and manage dance events
                 </p>
-                <p className="text-xs text-muted-foreground/60 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Requires admin approval
                 </p>
               </div>

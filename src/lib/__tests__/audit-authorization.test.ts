@@ -62,8 +62,16 @@ describe('mocked server authorization; no network or database writes',()=>{
     expect((await profileRoute.PATCH(request('PATCH',{}))).status).toBe(401);
   });
   it('validates patched end against the stored start before update',async()=>{
-    mocks.auth.mockResolvedValue({user:{id:'owner',role:'ORGANIZER'}});
+    mocks.auth.mockResolvedValue({user:{id:'owner',role:'ORGANIZER',verified:true}});
     expect((await eventRoute.PATCH(request('PATCH',{endTime:'2026-11-13T06:00:00Z'}),params)).status).toBe(400);
     expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it.each([{role:'USER',verified:true},{role:'ORGANIZER',verified:false}])('denies revoked event-management capability for an existing owner %j',async flags=>{
+    mocks.auth.mockResolvedValue({user:{id:'owner',...flags}});
+    mocks.update.mockResolvedValue({id:'other-event',isRecurring:false,recurrenceRule:null});
+    expect((await eventRoute.PATCH(request('PATCH',{title:'Should not publish'}),params)).status).toBe(403);
+    expect((await eventRoute.DELETE(request('DELETE'),params)).status).toBe(403);
+    expect((await instanceRoute.POST(request('POST'),params)).status).toBe(403);
+    expect(mocks.update).not.toHaveBeenCalled();expect(mocks.del).not.toHaveBeenCalled();expect(mocks.generate).not.toHaveBeenCalled();
   });
 });

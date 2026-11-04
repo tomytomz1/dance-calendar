@@ -7,6 +7,7 @@ import { organizerEditStatus } from "@/lib/event-status";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { updateEventSchema } from "@/lib/event-validation";
 import { z } from "zod";
+import { canManageEvents } from "@/lib/event-authorization";
 
 export async function GET(
   request: Request,
@@ -86,10 +87,13 @@ export async function PATCH(
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (!canManageEvents(session.user)) {
+      return NextResponse.json({ error: "Verified organizer access is required" }, { status: 403 });
+    }
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { organizerId: true, status: true, startTime: true, endTime: true, isRecurring: true, recurrenceRule: true },
+      select: { organizerId: true, status: true, slug: true, startTime: true, endTime: true, isRecurring: true, recurrenceRule: true },
     });
 
     if (!event) {
@@ -130,7 +134,8 @@ export async function PATCH(
     delete eventData.status; // applied via nextStatus below
 
     let slug: string | null | undefined;
-    if (eventData.title) {
+    // Titles can change without invalidating shared links and cached listings.
+    if (eventData.title && !event.slug) {
       slug = await generateUniqueEventSlug(eventData.title);
     }
 
@@ -138,6 +143,8 @@ export async function PATCH(
       where: { id },
       data: {
         ...eventData,
+        ...(eventData.imageUrl === "" && { imageUrl: null }),
+        ...(eventData.ticketUrl === "" && { ticketUrl: null }),
         ...(slug !== undefined && { slug }),
         ...(nextStatus !== undefined && { status: nextStatus }),
         ...(recurrence && {
@@ -179,10 +186,10 @@ export async function PATCH(
     });
 
     const shouldRegenerateInstances =
-      updatedEvent.isRecurring &&
-      updatedEvent.recurrenceRule &&
+      (updatedEvent.isRecurring || event.isRecurring) &&
       ((nextStatus === "APPROVED" && event.status !== "APPROVED") ||
-        !!recurrence || !!eventData.startTime || !!eventData.endTime);
+        !!recurrence || !!eventData.startTime || !!eventData.endTime ||
+        (eventData.isRecurring !== undefined && eventData.isRecurring !== event.isRecurring));
 
     if (shouldRegenerateInstances) {
       await generateInstancesForEvent(id, { replaceFuture: true }).catch((err) =>
@@ -217,6 +224,9 @@ export async function DELETE(
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!canManageEvents(session.user)) {
+      return NextResponse.json({ error: "Verified organizer access is required" }, { status: 403 });
     }
 
     const event = await prisma.event.findUnique({

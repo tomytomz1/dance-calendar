@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { motion, AnimatePresence, PanInfo, useDragControls } from "framer-motion";
 import {
   format,
@@ -13,6 +13,7 @@ import {
   isSameDay,
 } from "date-fns";
 import { cn } from "@/lib/utils";
+import { indexCalendarEvents, calendarDayKey } from "@/lib/calendar-event-days";
 import { isSiteToday } from "@/lib/timezone";
 import { useScrollSync } from "@/hooks/use-scroll-sync";
 import type { CalendarEvent } from "@/lib/types";
@@ -58,8 +59,8 @@ export function MobileMonthView({
     { viewType: "month", scrollRoot: "viewport" }
   );
 
-  const getEventsForDay = (date: Date) =>
-    events.filter((event) => isSameDay(new Date(event.start), date));
+  const eventDays = useMemo(() => indexCalendarEvents(events), [events]);
+  const getEventsForDay = (date: Date) => eventDays.get(calendarDayKey(date)) ?? [];
 
   const handleDayClick = (d: Date) => {
     onDateSelect(d);
@@ -137,7 +138,9 @@ export function MobileMonthView({
                       onClick={() => handleDayClick(day)}
                       aria-pressed={isSelected}
                       aria-label={
-                        format(day, "EEEE, MMMM d") +
+                        [format(day, "d"), ...eventsForDay.slice(0, 2).map(event => event.title),
+                          ...(eventsForDay.length > 2 ? [`+${eventsForDay.length - 2}`] : [])].join(" ") +
+                        ", " + format(day, "EEEE, MMMM d, yyyy") +
                         (isCurrentDay ? ", today" : "") +
                         (eventsForDay.length
                           ? `, ${eventsForDay.length} ${eventsForDay.length === 1 ? "event" : "events"}`

@@ -12,16 +12,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { AuthBrand } from "@/components/layout/auth-brand";
+import { internalRedirectPath } from "@/lib/internal-redirect";
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const rawCallback = searchParams.get("callbackUrl") || "/";
-  const callbackUrl =
-    rawCallback.startsWith("/") &&
-    !rawCallback.startsWith("//") &&
-    !rawCallback.includes("\\")
-      ? rawCallback
-      : "/";
+  const callbackUrl = internalRedirectPath(searchParams.get("callbackUrl"));
   const [isLoading, setIsLoading] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {

@@ -95,7 +95,7 @@ export function CalendarEventChip({
       <button
         type="button"
         onClick={onClick}
-        aria-label={`${event.title}, ${format(new Date(event.start), "h:mm a")} at ${event.venue}`}
+        aria-label={`${label}, ${format(new Date(event.start), "h:mm a")} at ${event.venue}`}
         className={cn(
           "cursor-pointer rounded-full text-left overflow-hidden transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#FFF1E5]",
