@@ -25,7 +25,7 @@ export function HeaderMobileNav({ children }: HeaderMobileNavProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="md:hidden"
+        className="lg:hidden"
         type="button"
         aria-label="Open menu"
       >
@@ -37,7 +37,7 @@ export function HeaderMobileNav({ children }: HeaderMobileNavProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
+        <Button variant="ghost" size="icon" className="lg:hidden">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Open menu</span>
         </Button>
