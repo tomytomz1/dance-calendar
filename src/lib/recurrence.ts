@@ -172,10 +172,28 @@ export function generateRecurrenceInstances(
   return instances;
 }
 
+/**
+ * Drops occurrences whose start instant is already stored (or repeated in
+ * the batch), so regenerating a series is idempotent.
+ */
+export function excludeExistingInstances(
+  instances: GeneratedInstance[],
+  existingStartTimes: Date[]
+): GeneratedInstance[] {
+  const seen = new Set(existingStartTimes.map((d) => d.getTime()));
+  return instances.filter((instance) => {
+    const key = instance.startTime.getTime();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function createEventInstances(
   eventId: string,
   instances: GeneratedInstance[]
 ): Promise<number> {
+  if (instances.length === 0) return 0;
   const data = instances.map((instance) => ({
     eventId,
     startTime: instance.startTime,
@@ -222,8 +240,26 @@ export async function generateInstancesForEvent(eventId: string): Promise<number
   const futureInstances = instances.filter((i) =>
     isAfter(i.startTime, new Date())
   );
+  if (futureInstances.length === 0) return 0;
 
-  return createEventInstances(eventId, futureInstances);
+  // EventInstance has no unique (eventId, startTime) constraint, so
+  // `skipDuplicates` cannot catch repeats: skip occurrences already stored,
+  // otherwise every weekly cron run inserts another copy of each date.
+  const existing = await prisma.eventInstance.findMany({
+    where: {
+      eventId,
+      startTime: { gte: futureInstances[0].startTime },
+    },
+    select: { startTime: true },
+  });
+
+  return createEventInstances(
+    eventId,
+    excludeExistingInstances(
+      futureInstances,
+      existing.map((e) => e.startTime)
+    )
+  );
 }
 
 export async function cancelEventInstance(instanceId: string): Promise<void> {
