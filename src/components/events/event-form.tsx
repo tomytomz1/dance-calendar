@@ -677,7 +677,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger className="h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
+                            <SelectTrigger className="data-[size=default]:h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                               <SelectValue placeholder="Select frequency" />
                             </SelectTrigger>
                           </FormControl>
@@ -778,7 +778,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                             defaultValue={field.value || "BY_DATE"}
                           >
                             <FormControl>
-                              <SelectTrigger className="h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
+                              <SelectTrigger className="data-[size=default]:h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
@@ -819,7 +819,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                                 }
                               >
                                 <FormControl>
-                                  <SelectTrigger className="h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
+                                  <SelectTrigger className="data-[size=default]:h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                                     <SelectValue placeholder="Select day" />
                                   </SelectTrigger>
                                 </FormControl>
