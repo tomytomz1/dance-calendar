@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 interface HeaderMobileNavProps {
   children: React.ReactNode;
@@ -43,6 +43,8 @@ export function HeaderMobileNav({ children }: HeaderMobileNavProps) {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72">
+        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+        <SheetDescription className="sr-only">Browse dance events, calendar, and account pages.</SheetDescription>
         {children}
       </SheetContent>
     </Sheet>
