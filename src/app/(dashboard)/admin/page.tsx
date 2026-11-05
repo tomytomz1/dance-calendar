@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { Check, X, Calendar, Users, Clock, Trash2, Music } from "lucide-react";
+import { Check, X, Calendar, Trash2, Music } from "lucide-react";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
 import { DeleteUserDialog } from "@/components/admin/delete-user-dialog";
 import { AdminStats } from "./admin-stats";
@@ -131,6 +131,9 @@ export default function AdminPage() {
   const [dancers, setDancers] = useState<Dancer[]>([]);
   const [totalDancers, setTotalDancers] = useState(0);
   const [totalOrganizers, setTotalOrganizers] = useState(0);
+  const [pendingOrganizersTotal, setPendingOrganizersTotal] = useState(0);
+  const [pendingEventsTotal, setPendingEventsTotal] = useState(0);
+  const [eventsTotal, setEventsTotal] = useState(0);
   const [pendingEvents, setPendingEvents] = useState<AdminEvent[]>([]);
   const [allEvents, setAllEvents] = useState<AdminEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -177,23 +180,20 @@ export default function AdminPage() {
         setOrganizers(data.organizers);
         setTotalOrganizers(data.totalOrganizers ?? 0);
         setTotalDancers(data.totalDancers ?? 0);
+        setPendingOrganizersTotal(data.pendingOrganizersCount ?? 0);
         setDancers(data.dancers ?? []);
       }
 
       if (pendingRes.ok) {
         const data = await pendingRes.json();
         setPendingEvents(data);
+        setPendingEventsTotal(Number(pendingRes.headers.get("X-Total-Count")) || data.length);
       }
 
       if (allEventsRes.ok) {
-        const data = await allEventsRes.json();
-            setAllEvents(
-              data.map((e: any) => ({
-                ...e,
-                startTime: e.startTime,
-                createdAt: e.createdAt,
-              }))
-            );
+        const data: AdminEvent[] = await allEventsRes.json();
+        setAllEvents(data);
+        setEventsTotal(Number(allEventsRes.headers.get("X-Total-Count")) || data.length);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -210,6 +210,8 @@ export default function AdminPage() {
 
       if (response.ok) {
         toast.success("Organizer approved successfully");
+        setPendingOrganizersTotal(n => Math.max(0, n - 1));
+        window.dispatchEvent(new Event("admin:moderation-changed"));
         setOrganizers((prev) =>
           prev.map((o) => (o.id === id ? { ...o, verified: true } : o))
         );
@@ -229,6 +231,8 @@ export default function AdminPage() {
 
       if (response.ok) {
         toast.success("Organizer verification revoked");
+        fetchData(eventsPage, organizerPage, dancerPage, pendingPage);
+        window.dispatchEvent(new Event("admin:moderation-changed"));
         setOrganizers((prev) =>
           prev.map((o) => (o.id === id ? { ...o, verified: false } : o))
         );
@@ -251,6 +255,8 @@ export default function AdminPage() {
       if (response.ok) {
         toast.success("Event approved successfully");
         setPendingEvents((prev) => prev.filter((e) => e.id !== id));
+        setPendingEventsTotal(n => Math.max(0, n - 1));
+        window.dispatchEvent(new Event("admin:moderation-changed"));
         setAllEvents((prev) =>
           prev.map((e) => (e.id === id ? { ...e, status: "APPROVED" } : e))
         );
@@ -273,6 +279,8 @@ export default function AdminPage() {
       if (response.ok) {
         toast.success("Event rejected");
         setPendingEvents((prev) => prev.filter((e) => e.id !== id));
+        setPendingEventsTotal(n => Math.max(0, n - 1));
+        window.dispatchEvent(new Event("admin:moderation-changed"));
         setAllEvents((prev) =>
           prev.map((e) => (e.id === id ? { ...e, status: "CANCELLED" } : e))
         );
@@ -312,8 +320,8 @@ export default function AdminPage() {
 
       <AdminStats
         totalOrganizers={totalOrganizers}
-        pendingOrganizersCount={pendingOrganizers.length}
-        pendingEventsCount={pendingEvents.length}
+        pendingOrganizersCount={pendingOrganizersTotal}
+        pendingEventsCount={pendingEventsTotal}
         totalDancers={totalDancers}
       />
 
@@ -325,8 +333,8 @@ export default function AdminPage() {
         <AdminSectionNav
           value={adminSection}
           onValueChange={setAdminSection}
-          pendingCount={pendingEvents.length}
-          eventsCount={allEvents.length}
+          pendingCount={pendingEventsTotal}
+          eventsCount={eventsTotal}
           organizersCount={totalOrganizers}
           dancersCount={totalDancers}
         />
@@ -387,6 +395,10 @@ export default function AdminPage() {
               </Card>
             ))
           )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" disabled={pendingPage === 1} onClick={() => setPendingPage(p => Math.max(1, p - 1))}>Previous</Button>
+            <Button variant="outline" size="sm" disabled={(pendingPage - 1) * PAGE_SIZE + pendingEvents.length >= pendingEventsTotal} onClick={() => setPendingPage(p => p + 1)}>Next</Button>
+          </div>
         </TabsContent>
 
         {/* All Events - status badge + Delete for non-pending */}
@@ -462,9 +474,9 @@ export default function AdminPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={allEvents.length < PAGE_SIZE}
+              disabled={(eventsPage - 1) * PAGE_SIZE + allEvents.length >= eventsTotal}
               onClick={() => {
-                if (allEvents.length === PAGE_SIZE) {
+                if ((eventsPage - 1) * PAGE_SIZE + allEvents.length < eventsTotal) {
                   setEventsPage((p) => p + 1);
                 }
               }}
