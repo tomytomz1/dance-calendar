@@ -9,6 +9,7 @@ import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createEventSchema as eventSchema } from "@/lib/event-validation";
 import { z } from "zod";
+import { invalidatePublicEventPages } from "@/lib/public-event-cache";
 
 export async function GET(request: Request) {
   try {
@@ -179,6 +180,7 @@ export async function POST(request: Request) {
       );
     }
 
+    invalidatePublicEventPages(event);
     return NextResponse.json(event, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

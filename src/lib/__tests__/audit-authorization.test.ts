@@ -5,6 +5,7 @@ vi.mock('@/lib/prisma',()=>({prisma:{event:{findUnique:mocks.findUnique,update:m
 vi.mock('@/lib/recurrence',()=>({generateInstancesForEvent:mocks.generate,getUpcomingInstances:vi.fn()}));
 vi.mock('@/lib/slug',()=>({generateUniqueEventSlug:vi.fn()}));
 vi.mock('@/lib/api-rate-limit',()=>({rateLimitOr429:()=>null}));
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 import * as eventRoute from '@/app/api/events/[id]/route';
 import * as instanceRoute from '@/app/api/events/[id]/instances/route';
 import * as eventsRoute from '@/app/api/events/route';

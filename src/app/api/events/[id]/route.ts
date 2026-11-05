@@ -8,6 +8,7 @@ import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { updateEventSchema } from "@/lib/event-validation";
 import { z } from "zod";
 import { canManageEvents } from "@/lib/event-authorization";
+import { invalidatePublicEventPages } from "@/lib/public-event-cache";
 
 export async function GET(
   request: Request,
@@ -197,6 +198,7 @@ export async function PATCH(
       );
     }
 
+    invalidatePublicEventPages(updatedEvent);
     return NextResponse.json(updatedEvent);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -231,7 +233,7 @@ export async function DELETE(
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { organizerId: true },
+      select: { organizerId: true, slug: true },
     });
 
     if (!event) {
@@ -257,6 +259,7 @@ export async function DELETE(
       where: { id },
     });
 
+    invalidatePublicEventPages({ id, slug: event.slug });
     return NextResponse.json({ message: "Event deleted successfully" });
   } catch (error) {
     console.error("Error deleting event:", error);
