@@ -188,6 +188,22 @@ await check('Calendar layout and interaction stay within all nine responsive wid
   await page.setViewportSize({ width: 390, height: 1000 }); await page.locator('button[class~="min-h-[52px]"]').first().waitFor(); await page.screenshot({ path: 'public/qa-calendar-mobile.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 }); await page.locator('div[class~="min-h-[76px]"]').first().waitFor(); await page.screenshot({ path: 'public/qa-calendar-desktop.png', fullPage: true }); await c.close();
 });
+await check('Deferred animation features preserve month and week swipes on mobile and desktop', async () => {
+  for (const width of [390, 1440]) {
+    const c = await context({ viewport: { width, height: 1000 } }); const page = await c.newPage();
+    await page.goto(base + '/calendar'); await page.getByRole('button', { name: 'Next month', exact: true }).waitFor();
+    for (const mode of ['Month', 'Week']) {
+      await page.getByRole('button', { name: mode, exact: true }).click();
+      const surface = page.getByTestId('calendar-swipe-surface'); await surface.scrollIntoViewIfNeeded(); await page.waitForTimeout(700);
+      const before = await page.getByRole('heading', { level: 2 }).first().innerText(); const box = await surface.boundingBox();
+      const x = box.x + box.width * 0.65, y = Math.max(80, Math.min(box.y + 40, 900));
+      await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x - 180, y, { steps: 12 }); await page.mouse.up();
+      await page.waitForFunction(previous => document.querySelector('h2')?.textContent !== previous, before);
+      assert.notEqual(await page.getByRole('heading', { level: 2 }).first().innerText(), before);
+    }
+    await c.close();
+  }
+});
 await check('Public internal links, sitemap, canonicals and unknown-page behavior', async () => {
   const c = await context(); const paths = new Set(publicPaths); const sitemap = await (await c.request.get(base + '/sitemap.xml')).text();
   for (const match of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) paths.add(new URL(match[1]).pathname);
@@ -226,8 +242,34 @@ await check('Real password-reset UI rejects replay and immediately revokes the p
   await page.getByLabel('Password', { exact: true }).fill(nextPassword); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.waitForURL(base + '/profile');
   await oldContext.close(); await fresh.close();
 });
+let baselineServer; let comparisonBase;
+if (process.env.MDL_AUDIT_COMPARE === '1') await check('Controlled baseline and candidate render the same isolated calendar content', async () => {
+  const baseline = 'http://127.0.0.1:3101';
+  baselineServer = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '.audit/baseline', '-H', '127.0.0.1', '-p', '3101'], { env: { ...process.env, PORT: '3101', AUTH_URL: baseline, NEXTAUTH_URL: baseline, NEXT_PUBLIC_APP_URL: baseline, NODE_ENV: 'production' }, stdio: ['ignore', 'ignore', 'pipe'] });
+  baselineServer.stderr.on('data', chunk => { if (/Error|error/.test(chunk.toString())) results.errors.push({ type: 'baseline-server', message: chunk.toString().slice(0, 500) }); });
+  let ready = false; for (let i = 0; i < 100; i++) { try { if ((await fetch(baseline)).ok) { ready = true; break; } } catch {} await new Promise(resolve => setTimeout(resolve, 300)); } assert.ok(ready, 'Baseline server did not start');
+  // Both builds initially prerendered before UI write tests. Refresh their caches
+  // through authenticated no-op edits of one isolated synthetic event, then prove
+  // identical visible data before comparing. No production origin is accepted.
+  const event = await db.event.findUniqueOrThrow({ where: { id: 'releaseqa-hoover-nov' } });
+  const cookie = (await owner.cookies()).map(c => `${c.name}=${c.value}`).join('; ');
+  for (const origin of [baseline, base]) {
+    assert.ok(/^http:\/\/127\.0\.0\.1:310[01]$/.test(origin));
+    const updated = await fetch(origin + '/api/events/releaseqa-hoover-nov', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify({ title: event.title }) }); assert.equal(updated.status, 200);
+  }
+  const snapshots = [];
+  for (const origin of [baseline, base]) {
+    const c = await browser.newContext({ viewport: { width: 390, height: 1000 }, timezoneId: 'America/Detroit' });
+    await c.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+    const page = await c.newPage(); await page.goto(origin + '/calendar'); await page.getByRole('button', { name: 'Next month', exact: true }).waitFor();
+    snapshots.push(await page.evaluate(() => ({ heading: document.querySelector('h1')?.textContent, statuses: [...document.querySelectorAll('[role="status"]')].map(el => el.textContent), calendarNames: [...document.querySelectorAll('button[aria-label]')].map(el => el.getAttribute('aria-label')) })));
+    await c.close();
+  }
+  assert.deepEqual(snapshots[0], snapshots[1]); comparisonBase = baseline; console.log('QA_BASELINE_CONTENT_MATCH ' + JSON.stringify({ statuses: snapshots[0].statuses, calendarNames: snapshots[0].calendarNames.length }));
+});
 await owner.close(); await browser.close();
-if (process.env.MDL_AUDIT_PERFORMANCE === '1') { const { measurePerformance } = await import('./performance.mjs'); results.performance = await measurePerformance(chromiumBinary, base); }
+if (process.env.MDL_AUDIT_PERFORMANCE === '1') { const { measurePerformance } = await import('./performance.mjs'); results.performance = await measurePerformance(chromiumBinary, base, { baseline: comparisonBase }); }
+baselineServer?.kill('SIGTERM');
 server.kill('SIGTERM'); await db.$disconnect();
 await mkdir('public', { recursive: true }); await writeFile('public/qa-release-report.json', JSON.stringify(results, null, 2));
 for (const row of results.accessibility) if (row.violations.length) console.log('QA_AXE ' + JSON.stringify(row));

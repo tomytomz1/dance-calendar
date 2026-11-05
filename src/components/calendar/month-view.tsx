@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { motion, AnimatePresence, type PanInfo } from "framer-motion";
+import * as m from "framer-motion/m";
+import { AnimatePresence, type PanInfo } from "framer-motion";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   addDays, isSameMonth, isSameDay,
@@ -45,7 +46,8 @@ export function MonthView({ currentDate, events, direction, onDateSelect, onEven
   return (
     <div className="min-h-[520px] w-full overflow-hidden touch-pan-y">
       <AnimatePresence initial={false} custom={direction} mode="wait">
-        <motion.div
+        <m.div
+            data-testid="calendar-swipe-surface"
           key={monthStart.toISOString()}
           custom={direction}
           variants={variants}
@@ -107,7 +109,7 @@ export function MonthView({ currentDate, events, direction, onDateSelect, onEven
             </div>
           </div>
           <SelectedDayAgenda date={currentDate} events={selectedDayEvents} onEventClick={onEventClick} allEvents={events} onDateSelect={onDateSelect} />
-        </motion.div>
+        </m.div>
       </AnimatePresence>
     </div>
   );

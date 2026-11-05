@@ -1,7 +1,8 @@
 "use client";
 
 import { Fragment, useRef, useMemo } from "react";
-import { motion, AnimatePresence, PanInfo, useDragControls } from "framer-motion";
+import * as m from "framer-motion/m";
+import { AnimatePresence, PanInfo, useDragControls } from "framer-motion";
 import {
   format,
   startOfMonth,
@@ -89,7 +90,8 @@ export function MobileMonthView({
     <div className="flex w-full max-w-full flex-col overflow-x-hidden">
       <div className="overflow-x-hidden">
         <AnimatePresence initial={false} custom={direction} mode="wait">
-          <motion.div
+          <m.div
+            data-testid="calendar-swipe-surface"
             key={monthStart.toISOString()}
             custom={direction}
             variants={variants}
@@ -181,7 +183,7 @@ export function MobileMonthView({
                 })}
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </AnimatePresence>
       </div>
 

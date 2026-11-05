@@ -1,1 +1,1 @@
-{"buildCommand":"node scripts/run-isolated-audit.mjs","crons":[]}
+{"buildCommand":"MDL_AUDIT_COMPARE=1 node scripts/run-isolated-audit.mjs","crons":[]}
