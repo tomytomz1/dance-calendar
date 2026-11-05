@@ -87,8 +87,8 @@ export function MobileMonthView({
 
   return (
     <div className="flex w-full max-w-full flex-col overflow-x-hidden">
-      <div className="overflow-x-hidden">
-        <AnimatePresence initial={false} custom={direction} mode="sync">
+      <div className="relative overflow-x-hidden">
+        <AnimatePresence initial={false} custom={direction} mode="popLayout">
           <motion.div
             data-testid="calendar-swipe-surface"
             key={monthStart.toISOString()}

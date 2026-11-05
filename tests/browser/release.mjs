@@ -195,11 +195,17 @@ const calendarState = page => page.evaluate(() => ({
 const checkRapidReturn = async page => {
   await page.getByRole('button', { name: 'Today', exact: true }).click(); await page.waitForTimeout(900);
   const expected = await calendarState(page);
+  const surfaces = page.getByTestId('calendar-swipe-surface');
+  const beforeHeight = await surfaces.count() ? await surfaces.first().evaluate(el => el.parentElement.getBoundingClientRect().height) : null;
   for (const [direction, pause] of [['Next', 150], ['Previous', 0], ['Next', 350]]) {
     const period = await page.getByRole('button', { name: 'Month', exact: true }).getAttribute('aria-pressed') === 'true' ? 'month' : 'week';
     await page.getByRole('button', { name: `${direction} ${period}`, exact: true }).click();
     await page.getByRole('heading', { level: 2 }).first().innerText();
     await page.waitForTimeout(pause);
+    if (period === 'month' && beforeHeight !== null) {
+      const duringHeight = await page.getByTestId('calendar-swipe-surface').first().evaluate(el => el.parentElement.getBoundingClientRect().height);
+      assert.ok(duringHeight <= beforeHeight * 1.5 + 24, 'Transition must not stack two calendar grids in normal layout');
+    }
     await page.getByRole('button', { name: 'Today', exact: true }).click(); await page.waitForTimeout(900);
     assert.deepEqual(await calendarState(page), expected, `Stale grid after ${direction} then Today`);
   }
