@@ -1,8 +1,7 @@
 "use client";
 
 import { Fragment, useRef, useMemo } from "react";
-import * as m from "framer-motion/m";
-import { AnimatePresence, PanInfo, useDragControls } from "framer-motion";
+import { motion, AnimatePresence, PanInfo, useDragControls } from "framer-motion";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { indexCalendarEvents, calendarDayKey } from "@/lib/calendar-event-days";
@@ -68,8 +67,8 @@ export function MobileWeekView({
   return (
     <div className="flex w-full max-w-full flex-col overflow-x-hidden">
       <div className="overflow-x-hidden">
-        <AnimatePresence initial={false} custom={direction} mode="wait">
-          <m.div
+        <AnimatePresence initial={false} custom={direction} mode="sync">
+          <motion.div
             data-testid="calendar-swipe-surface"
             key={weekStart.toISOString()}
             custom={direction}
@@ -151,7 +150,7 @@ export function MobileWeekView({
                 );
               })}
             </div>
-          </m.div>
+          </motion.div>
         </AnimatePresence>
       </div>
 

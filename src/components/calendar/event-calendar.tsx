@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef } from "react";
-import { LazyMotion } from 'framer-motion';
 import { addWeeks, addMonths, subWeeks, subMonths } from "date-fns";
 import { CalendarHeader } from "./calendar-header";
 import { WeekView } from "./week-view";
@@ -18,8 +17,6 @@ interface EventCalendarProps {
   /** Michigan wall-clock date to open on (defaults to today in Michigan). */
   initialDate?: Date;
 }
-
-const loadMotionFeatures = () => import('@/lib/calendar-motion-features').then(module => module.default);
 
 export function EventCalendar({ events: rawEvents, initialDate }: EventCalendarProps) {
   const isMobile = useMobileViewport();
@@ -86,7 +83,6 @@ export function EventCalendar({ events: rawEvents, initialDate }: EventCalendarP
     : (isMobile ? MobileMonthView : MonthView);
 
   return (
-    <LazyMotion features={loadMotionFeatures} strict>
     <div className="flex flex-col bg-[#191421] md:h-full">
       <CalendarHeader
         currentDate={currentDate}
@@ -115,6 +111,5 @@ export function EventCalendar({ events: rawEvents, initialDate }: EventCalendarP
         onClose={() => setIsSheetOpen(false)}
       />
     </div>
-    </LazyMotion>
   );
 }

@@ -188,7 +188,33 @@ await check('Calendar layout and interaction stay within all nine responsive wid
   await page.setViewportSize({ width: 390, height: 1000 }); await page.locator('button[class~="min-h-[52px]"]').first().waitFor(); await page.screenshot({ path: 'public/qa-calendar-mobile.png', fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 }); await page.locator('div[class~="min-h-[76px]"]').first().waitFor(); await page.screenshot({ path: 'public/qa-calendar-desktop.png', fullPage: true }); await c.close();
 });
-await check('Deferred animation features preserve month and week swipes on mobile and desktop', async () => {
+const calendarState = page => page.evaluate(() => ({
+  heading: document.querySelector('h2')?.textContent,
+  days: [...document.querySelectorAll('button[aria-pressed][aria-label]')].map(el => ({ name: el.getAttribute('aria-label'), selected: el.getAttribute('aria-pressed') })),
+}));
+const checkRapidReturn = async page => {
+  await page.getByRole('button', { name: 'Today', exact: true }).click(); await page.waitForTimeout(900);
+  const expected = await calendarState(page);
+  for (const direction of ['Next', 'Previous', 'Next']) {
+    const period = await page.getByRole('button', { name: 'Month', exact: true }).getAttribute('aria-pressed') === 'true' ? 'month' : 'week';
+    await page.getByRole('button', { name: `${direction} ${period}`, exact: true }).click();
+    await page.getByRole('heading', { level: 2 }).first().innerText();
+    await page.getByRole('button', { name: 'Today', exact: true }).click(); await page.waitForTimeout(900);
+    assert.deepEqual(await calendarState(page), expected, `Stale grid after ${direction} then Today`);
+  }
+};
+await check('Rapid month and week reversal keeps the heading, grid and selected date consistent', async () => {
+  for (const width of [390, 1440]) {
+    const c = await context({ viewport: { width, height: 1000 } }); const page = await c.newPage();
+    await page.goto(base + '/calendar'); await page.getByRole('button', { name: 'Next month', exact: true }).waitFor();
+    for (const mode of ['Month', 'Week']) {
+      await page.getByRole('button', { name: mode, exact: true }).click(); await page.waitForTimeout(900);
+      await checkRapidReturn(page);
+    }
+    await c.close();
+  }
+});
+await check('Month and week swipes remain functional on mobile and desktop', async () => {
   for (const width of [390, 1440]) {
     const c = await context({ viewport: { width, height: 1000 } }); const page = await c.newPage();
     await page.goto(base + '/calendar'); await page.getByRole('button', { name: 'Next month', exact: true }).waitFor();
@@ -257,6 +283,13 @@ if (process.env.MDL_AUDIT_COMPARE === '1') await check('Controlled baseline and 
     assert.ok(/^http:\/\/127\.0\.0\.1:310[01]$/.test(origin));
     const updated = await fetch(origin + '/api/events/releaseqa-hoover-nov', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify({ title: event.title }) }); assert.equal(updated.status, 200);
   }
+  const baselineContext = await browser.newContext({ viewport: { width: 390, height: 1000 }, timezoneId: 'America/Detroit' });
+  await baselineContext.route('**/*', route => new URL(route.request().url()).origin === baseline ? route.continue() : route.abort());
+  const baselinePage = await baselineContext.newPage(); await baselinePage.goto(baseline + '/calendar'); await baselinePage.getByRole('button', { name: 'Next month', exact: true }).waitFor();
+  let reproduced = false;
+  try { await checkRapidReturn(baselinePage); } catch (error) { reproduced = true; results.calendarBaselineReproduction = { reproduced: true, message: error.message.slice(0, 400), state: await calendarState(baselinePage) }; }
+  console.log('QA_BASELINE_REPRO ' + JSON.stringify(results.calendarBaselineReproduction ?? { reproduced: false }));
+  await baselineContext.close(); assert.ok(reproduced, 'Baseline rapid-navigation mismatch must reproduce before certifying the regression');
   const snapshots = [];
   for (const origin of [baseline, base]) {
     const c = await browser.newContext({ viewport: { width: 390, height: 1000 }, timezoneId: 'America/Detroit' });
