@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { Fragment, useRef, useMemo } from "react";
 import { motion, AnimatePresence, PanInfo, useDragControls } from "framer-motion";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -123,7 +123,7 @@ export function MobileWeekView({
                   >
                     <span className="text-[11px] font-semibold uppercase text-[#D9C8D8]">
                       {format(day, "EEE")}
-                    </span>
+                    </span>{" "}
                     <span
                       className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold text-[#FFF1E5]",
@@ -132,14 +132,12 @@ export function MobileWeekView({
                       )}
                     >
                       {format(day, "d")}
-                    </span>
+                    </span>{" "}
                     <div className="flex w-full min-w-0 flex-col gap-0.5">
                       {eventsForDay.slice(0, 2).map((event) => (
-                        <CalendarEventChip
-                          key={event.instanceKey ?? event.id}
-                          event={event}
-                          variant="month-compact"
-                        />
+                        <Fragment key={event.instanceKey ?? event.id}>
+                          <CalendarEventChip event={event} variant="month-compact" />{" "}
+                        </Fragment>
                       ))}
                       {eventsForDay.length > 2 && (
                         <span className="text-center text-[10px] font-semibold text-[#E8D6EA]">

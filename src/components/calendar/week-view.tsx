@@ -94,7 +94,7 @@ export function WeekView({
                     >
                       <span className="text-xs font-semibold uppercase tracking-wider text-[#D9C8D8]">
                         {format(day, "EEE")}
-                      </span>
+                      </span>{" "}
                       <span
                         className={cn(
                           "flex h-9 w-9 items-center justify-center rounded-full text-base font-bold text-[#FFF1E5]",
