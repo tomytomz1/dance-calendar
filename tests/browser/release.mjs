@@ -86,6 +86,10 @@ await check('Real browser create form validates required values and saves a Mich
   await page.getByLabel('Ticket URL', { exact: true }).fill('javascript:alert(1)'); await page.getByRole('button', { name: 'Create Event', exact: true }).click(); await page.locator('[data-slot="form-message"]').filter({ hasText: 'URL' }).first().waitFor(); await page.getByLabel('Ticket URL', { exact: true }).fill('');
   const r = await submitEvent(page, 'Create Event', '/api/events', 'POST'); assert.equal(r.status(), 201); const e = await r.json(); assert.equal(e.startTime, '2026-11-14T02:20:00.000Z'); assert.equal(e.endTime, '2026-11-14T06:00:00.000Z');
 });
+await check('Published saves immediately refresh the public directory and calendar', async () => {
+  const c = await context(); const page = await c.newPage(); await page.goto(base + '/events'); await page.getByText('Synthetic Browser Created Social', { exact: true }).first().waitFor();
+  const calendar = await (await c.request.get(base + '/calendar')).text(); assert.ok(calendar.includes('Synthetic Recurring Edited')); assert.ok(calendar.includes('Synthetic Browser Created Social')); await c.close();
+});
 for (const who of ['other', 'user']) await check(`Real ${who} session cannot mutate foreign events or read admin records`, async () => {
   const c = await context(); const page = await login(c, who, who === 'user' ? '/' : '/organizer/events');
   const before = await db.event.findUniqueOrThrow({ where: { id: 'releaseqa-hoover-nov' } });

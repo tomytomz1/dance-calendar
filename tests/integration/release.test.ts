@@ -3,6 +3,9 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 const session = vi.hoisted(() => ({ current: null as null | { user: { id: string; role: string; verified: boolean } } }));
 vi.mock('@/lib/auth', () => ({ auth: async () => session.current }));
+// Direct handler tests have no Next request store. Real HTTP browser tests
+// below separately verify public-cache invalidation after a published save.
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 import { prisma } from '@/lib/prisma';
 import { generateInstancesForEvent } from '@/lib/recurrence';
 import * as events from '@/app/api/events/route';
