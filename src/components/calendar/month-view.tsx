@@ -43,9 +43,10 @@ export function MonthView({ currentDate, events, direction, onDateSelect, onEven
   };
 
   return (
-    <div className="min-h-[520px] w-full overflow-hidden touch-pan-y">
-      <AnimatePresence initial={false} custom={direction} mode="wait">
+    <div className="relative min-h-[520px] w-full overflow-hidden touch-pan-y">
+      <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
+            data-testid="calendar-swipe-surface"
           key={monthStart.toISOString()}
           custom={direction}
           variants={variants}

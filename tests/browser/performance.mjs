@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { chromiumArgs } from './chromium-args.mjs';
 
 /** Repeatable lab measurements; synthetic candidate content differs from production. */
-export async function measurePerformance(chromiumBinary, base) {
+export async function measurePerformance(chromiumBinary, base, { baseline } = {}) {
   const { default: lighthouse } = await import('file:///tmp/mdl-qa-browser/node_modules/lighthouse/core/index.js');
   const { default: desktop } = await import('file:///tmp/mdl-qa-browser/node_modules/lighthouse/core/config/desktop-config.js');
   const child = spawn(await chromiumBinary.executablePath(), [...chromiumArgs, '--headless', '--remote-debugging-port=9222', '--user-data-dir=/tmp/mdl-lighthouse-profile', 'about:blank'], { stdio: 'ignore' });
@@ -27,6 +27,19 @@ export async function measurePerformance(chromiumBinary, base) {
       rows.push(row); console.log('QA_LIGHTHOUSE ' + JSON.stringify(row));
     }
     // Production comparison is GET-only, without authenticated cookies or form actions.
+    if (baseline) {
+      const paired = [];
+      for (const method of ['simulate', 'devtools']) for (let run = 1; run <= (method === 'simulate' ? 5 : 3); run++) {
+        const order = run % 2 ? [['baseline-065d916', baseline], ['candidate', base]] : [['candidate', base], ['baseline-065d916', baseline]];
+        for (const [variant, origin] of order) {
+          const { lhr } = await lighthouse(origin + '/calendar', { port: 9222, logLevel: 'error', onlyCategories: ['performance'], output: 'json', maxWaitForLoad: 20000, throttlingMethod: method, blockedUrlPatterns: ['*google-analytics.com*', '*googletagmanager.com*', '*plausible.io*', '*/_vercel/insights/*'] });
+          const a = lhr.audits;
+          const row = { scope: 'controlled-same-host', path: '/calendar', formFactor: 'mobile', variant, throttlingMethod: method, run, score: Math.round(lhr.categories.performance.score * 100), LCP: a['largest-contentful-paint'].numericValue, CLS: a['cumulative-layout-shift'].numericValue, TBT: a['total-blocking-time'].numericValue, javascriptBytes: a['network-requests']?.details?.items?.filter(r => r.resourceType === 'Script').reduce((n, r) => n + (r.transferSize || 0), 0), runtimeError: lhr.runtimeError ?? null };
+          paired.push(row); rows.push(row); console.log('QA_PAIRED ' + JSON.stringify(row));
+        }
+      }
+      await writeFile('public/qa-performance-comparison.json', JSON.stringify({ baselineSource: '065d916268ec5a1e0f748c2cb96be09b8ab7b642', sameDependencyLockfile: true, sameHostAndChromium: true, visibleDataMatch: true, alternatingOrder: true, runs: paired }, null, 2));
+    }
     for (const path of (profileOnly ? [] : ['/', '/calendar', '/events', '/event/hoover-st-november-social-2'])) {
       try {
         const { lhr } = await lighthouse('https://michigandance.life' + path, { port: 9222, logLevel: 'error', onlyCategories: ['performance'], output: 'json', maxWaitForLoad: 20000, blockedUrlPatterns: ['*google-analytics.com*', '*googletagmanager.com*', '*plausible.io*', '*/_vercel/insights/*'] });

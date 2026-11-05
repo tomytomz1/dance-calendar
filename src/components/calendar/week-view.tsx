@@ -48,9 +48,10 @@ export function WeekView({
   };
 
   return (
-    <div className="min-h-[420px] w-full overflow-hidden touch-pan-y">
-      <AnimatePresence initial={false} custom={direction} mode="wait">
+    <div className="relative min-h-[420px] w-full overflow-hidden touch-pan-y">
+      <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
+            data-testid="calendar-swipe-surface"
           key={weekStart.toISOString()}
           custom={direction}
           variants={variants}
