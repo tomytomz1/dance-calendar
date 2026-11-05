@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useState, Suspense } from "react";
+import { getProviders, signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,12 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = internalRedirectPath(searchParams.get("callbackUrl"));
   const [isLoading, setIsLoading] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getProviders().then(providers => { if (active) setGoogleEnabled(Boolean(providers?.google)); }).catch(() => { /* Keep password login available if provider discovery fails. */ });
+    return () => { active = false; };
+  }, []);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -71,6 +77,7 @@ function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {googleEnabled && <>
         <Button
           variant="outline"
           className="w-full h-12"
@@ -108,6 +115,7 @@ function LoginForm() {
             </span>
           </div>
         </div>
+        </>}
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">

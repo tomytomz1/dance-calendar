@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import {
   verifyPasswordResetToken,
-  consumePasswordResetToken,
+  resetPasswordWithToken,
 } from "@/lib/password-reset";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { z } from "zod";
@@ -47,29 +46,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = await prisma.user.findFirst({
-      where: {
-        email: { equals: verified.email, mode: "insensitive" },
-      },
-      select: { id: true, password: true },
-    });
-
-    if (!user || !user.password) {
-      await consumePasswordResetToken(token);
+    const hashedPassword = await hashPassword(password);
+    if (!(await resetPasswordWithToken(token, hashedPassword))) {
       return NextResponse.json(
         { error: "This reset link is invalid or has expired." },
         { status: 400 }
       );
     }
-
-    const hashedPassword = await hashPassword(password);
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword },
-    });
-
-    await consumePasswordResetToken(token);
 
     return NextResponse.json({
       message: "Your password has been reset. You can now sign in.",

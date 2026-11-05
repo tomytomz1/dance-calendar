@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { writeFile, mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { createHash, randomBytes } from 'node:crypto';
 import { chromiumArgs } from './chromium-args.mjs';
 import { PrismaClient } from '@prisma/client';
 await import('../../scripts/assert-isolated-audit.mjs');
@@ -14,15 +15,17 @@ const bcrypt = (await import('bcryptjs')).default;
 const base = 'http://127.0.0.1:3100';
 const results = { checks: [], accessibility: [], timezone: [], performance: [], errors: [], scope: 'Production-mode isolated candidate; synthetic records; no production writes' };
 const password = 'Synthetic-QA-Only-2026!';
-const ids = Object.fromEntries(['owner', 'other', 'user', 'admin', 'pending'].map(role => [role, `releaseqa-browser-${role}`]));
+const ids = Object.fromEntries(['owner', 'other', 'user', 'admin', 'pending', 'recovery'].map(role => [role, `releaseqa-browser-${role}`]));
 for (const [who, id] of Object.entries(ids)) {
-  const data = { email: `${id}@example.invalid`, name: `Synthetic ${who}`, password: await bcrypt.hash(password, 12), role: who === 'admin' ? 'ADMIN' : who === 'user' ? 'USER' : 'ORGANIZER', verified: who !== 'pending' };
+  const data = { email: `${id}@example.invalid`, name: `Synthetic ${who}`, password: await bcrypt.hash(password, 12), role: who === 'admin' ? 'ADMIN' : ['user', 'recovery'].includes(who) ? 'USER' : 'ORGANIZER', verified: who !== 'pending' };
   await db.user.upsert({ where: { id }, create: { id, ...data }, update: data });
 }
 const makeEvent = async (id, overrides = {}) => db.event.upsert({ where: { id }, create: { id, title: 'Synthetic QA Social', slug: id, danceStyles: ['Salsa'], venue: 'Synthetic venue', address: '123 QA Street', city: 'Royal Oak', organizerId: ids.owner, status: 'APPROVED', startTime: new Date('2026-11-14T01:30Z'), endTime: new Date('2026-11-14T06:00Z'), ...overrides }, update: overrides });
 await makeEvent('releaseqa-hoover-nov', { title: 'Hoover St November Social QA', startTime: new Date('2026-11-14T01:30Z'), endTime: new Date('2026-11-14T06:00Z') });
 await makeEvent('releaseqa-browser-series', { title: 'Synthetic Recurring Edit', isRecurring: true, startTime: new Date('2026-11-21T01:20Z'), endTime: new Date('2026-11-21T06:00Z'), ticketUrl: 'https://example.invalid/tickets', imageUrl: 'https://example.invalid/flyer.jpg' });
 await db.recurrenceRule.upsert({ where: { eventId: 'releaseqa-browser-series' }, create: { eventId: 'releaseqa-browser-series', frequency: 'WEEKLY', interval: 2, daysOfWeek: [5], count: 5, monthlyWeeks: [] }, update: { frequency: 'WEEKLY', interval: 2, daysOfWeek: [5], count: 5, until: null } });
+await makeEvent('releaseqa-share-series', { title: 'Synthetic Monthly Social', isRecurring: true, startTime: new Date('2026-04-19T01:00Z'), endTime: new Date('2026-04-19T06:00Z') });
+await db.recurrenceRule.upsert({ where: { eventId: 'releaseqa-share-series' }, create: { eventId: 'releaseqa-share-series', frequency: 'MONTHLY', interval: 1, daysOfWeek: [], monthlyPattern: 'BY_WEEKDAY', monthlyDayOfWeek: 6, monthlyWeeks: [3] }, update: { frequency: 'MONTHLY', interval: 1, daysOfWeek: [], monthlyPattern: 'BY_WEEKDAY', monthlyDayOfWeek: 6, monthlyWeeks: [3], until: null, count: null } });
 const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', '3100'], { env: { ...process.env, PORT: '3100', AUTH_URL: base, NEXTAUTH_URL: base, NEXT_PUBLIC_APP_URL: base, NODE_ENV: 'production' }, stdio: ['ignore', 'pipe', 'pipe'] });
 server.stderr.on('data', chunk => { const text = chunk.toString(); if (/Error|error/.test(text)) results.errors.push(text.slice(0, 600)); });
 for (let i = 0; i < 100; i++) { try { if ((await fetch(base)).ok) break; } catch {} await new Promise(resolve => setTimeout(resolve, 300)); }
@@ -58,6 +61,12 @@ const submitEvent = async (page, name, path, method) => {
   return response;
 };
 const owner = await context(); let ownerPage;
+await check('Login only offers providers configured on the server', async () => {
+  const c = await context(); const page = await c.newPage(); const providers = await (await c.request.get(base + '/api/auth/providers')).json();
+  await page.goto(base + '/login'); await page.getByLabel('Email', { exact: true }).waitFor();
+  if (!providers.google) assert.equal(await page.getByRole('button', { name: 'Continue with Google', exact: true }).count(), 0);
+  assert.ok(providers.credentials); await c.close();
+});
 await check('Real credentials login and populated My Events', async () => { ownerPage = await login(owner, 'owner'); await ownerPage.getByText('Synthetic Recurring Edit', { exact: true }).waitFor(); });
 await check('Editor preserves non-quarter-hour minutes and saves optional URL clearing', async () => {
   const page = ownerPage; await page.goto(`${base}/organizer/events/releaseqa-browser-series/edit`); await waitForTimeControls(page);
@@ -190,6 +199,32 @@ await check('Public internal links, sitemap, canonicals and unknown-page behavio
     for (const match of html.matchAll(/href="(\/[^"#]*)"/g)) { const url = new URL(match[1].replaceAll('&amp;', '&'), base); if (!/^\/(?:api|_next|admin|organizer|profile)/.test(url.pathname) && !/\.[a-z0-9]{2,5}$/i.test(url.pathname) && !visited.has(url.pathname) && !queue.includes(url.pathname)) queue.push(url.pathname); }
   }
   assert.deepEqual(broken, []); assert.equal((await c.request.get(base + '/releaseqa-this-route-does-not-exist')).status(), 404); console.log('QA_CRAWL ' + JSON.stringify({ visited: visited.size, broken })); await c.close();
+});
+await check('Recurring social cards use the resolved stale-link occurrence and render valid distinct PNGs', async () => {
+  const c = await context(); const page = await c.newPage(); const hashes = [];
+  for (const [requested, expected] of [['2026-11-21T17:00:00.000Z', '2026-11-22T02:00:00.000Z'], ['2026-12-19T17:00:00.000Z', '2026-12-20T02:00:00.000Z']]) {
+    await page.goto(`${base}/event/releaseqa-share-series?instance=${encodeURIComponent(requested)}`);
+    const imageUrl = new URL(await page.locator('meta[property="og:image"]').getAttribute('content')); assert.ok(imageUrl.pathname.endsWith('/share-image')); assert.equal(imageUrl.searchParams.get('instance'), expected);
+    assert.ok((await page.locator('meta[property="og:url"]').getAttribute('content')).includes(encodeURIComponent(expected)));
+    const response = await c.request.get(base + imageUrl.pathname + imageUrl.search); assert.equal(response.status(), 200); assert.match(response.headers()['content-type'], /image\/png/);
+    const buffer = await response.body(); assert.equal(buffer.readUInt32BE(16), 1200); assert.equal(buffer.readUInt32BE(20), 630); hashes.push(createHash('sha256').update(buffer).digest('hex'));
+    if (expected.includes('12-20')) await writeFile('public/qa-social-december.png', buffer);
+  }
+  assert.notEqual(hashes[0], hashes[1]); assert.equal((await c.request.get(base + '/event/releaseqa-absent/share-image')).status(), 404); await c.close();
+});
+await check('Real password-reset UI rejects replay and immediately revokes the previous authenticated session', async () => {
+  const oldContext = await context(); await login(oldContext, 'recovery', '/profile');
+  const token = randomBytes(32).toString('hex'); const nextPassword = 'Synthetic-Recovered-Only-2026!';
+  await db.verificationToken.create({ data: { identifier: `password-reset:${ids.recovery}@example.invalid`, token: createHash('sha256').update(token).digest('hex'), expires: new Date(Date.now() + 600000) } });
+  const fresh = await context(); const page = await fresh.newPage(); await page.goto(`${base}/reset-password?token=${token}`);
+  await page.getByLabel('New password', { exact: true }).fill(nextPassword); await page.getByLabel('Confirm password', { exact: true }).fill(nextPassword);
+  const changed = page.waitForResponse(r => r.url().endsWith('/api/auth/reset-password') && r.request().method() === 'POST'); await page.getByRole('button', { name: 'Reset password', exact: true }).click(); assert.equal((await changed).status(), 200); await page.waitForURL(`${base}/login`);
+  assert.equal((await oldContext.request.patch(base + '/api/events/releaseqa-hoover-nov', { data: { title: 'Revoked reset session' } })).status(), 401);
+  assert.ok(!(await (await oldContext.request.get(base + '/api/auth/session')).json())?.user);
+  assert.equal((await fresh.request.post(base + '/api/auth/reset-password', { data: { token, password: 'Synthetic-replay!' } })).status(), 400);
+  await page.goto(base + '/login?callbackUrl=%2Fprofile'); await page.getByLabel('Email', { exact: true }).fill(`${ids.recovery}@example.invalid`); await page.getByLabel('Password', { exact: true }).fill(password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByText('Invalid email or password').waitFor();
+  await page.getByLabel('Password', { exact: true }).fill(nextPassword); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.waitForURL(base + '/profile');
+  await oldContext.close(); await fresh.close();
 });
 await owner.close(); await browser.close();
 if (process.env.MDL_AUDIT_PERFORMANCE === '1') { const { measurePerformance } = await import('./performance.mjs'); results.performance = await measurePerformance(chromiumBinary, base); }

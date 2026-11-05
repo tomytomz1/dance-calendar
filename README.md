@@ -88,7 +88,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 4. Deploy!
 
-Production builds (`VERCEL_ENV=production`) run `prisma db push` before `next build` (see `scripts/db-push-production.mjs`), so new columns and tables in `prisma/schema.prisma` reach the database automatically. Preview builds skip it because they share the production database. A change that would lose data fails the build instead of being applied; run it manually after checking the data.
+`npm run build` runs `next build` only. Production and preview builds do not synchronize the database schema. `postinstall` generates the Prisma client without changing database records or schema. Any production schema change requires a separate reviewed plan, a verified backup, isolated validation, and explicit owner approval. The legacy `scripts/db-push-production.mjs` entry point is not invoked by the build; do not run it against production without that approval. Preview deployments normally share the live database, so saved workflow tests must use the explicitly isolated QA configuration described in `tests/README.md`.
 
 ## Creating an Admin User
 
