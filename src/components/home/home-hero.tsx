@@ -13,6 +13,8 @@ const danceStyles = ["Salsa", "Bachata", "Kizomba", "Swing", "Ballroom"];
 export function HomeHero({ eventCount, topCities, cityCounts = {} }: HomeHeroProps) {
   return (
     <section className="mdl-hero relative isolate overflow-hidden border-b border-white/10">
+      <link rel="preload" as="image" href="/dance/hero-mobile.webp" media="(max-width: 640px)" fetchPriority="high" />
+      <link rel="preload" as="image" href="/dance/hero-desktop.webp" media="(min-width: 640.01px)" fetchPriority="high" />
       <picture className="absolute inset-0 -z-10">
         <source media="(max-width: 640px)" srcSet="/dance/hero-mobile.webp" />
         <img src="/dance/hero-desktop.webp" alt="" loading="eager" fetchPriority="high" className="mdl-hero-image h-full w-full object-cover" />
