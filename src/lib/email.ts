@@ -11,6 +11,10 @@ const FROM_EMAIL =
   process.env.EMAIL_FROM || "MichiganDance.Life <noreply@michigandance.life>";
 const BRAND = "MichiganDance.Life";
 const TAGLINE = "Find dance events across Michigan";
+const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function escapeEmailHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => HTML_ESCAPES[character]);
+}
 
 export interface EmailOptions {
   to: string | string[];
@@ -55,6 +59,8 @@ export function generateWelcomeEmail(name: string, isOrganizer: boolean) {
   const subject = isOrganizer
     ? `Welcome to ${BRAND} — Organizer Registration`
     : `Welcome to ${BRAND}!`;
+
+  name = escapeEmailHtml(name);
 
   const html = `
     <!DOCTYPE html>
@@ -114,6 +120,14 @@ export function generateNewEventEmail(
   appBaseUrl: string
 ) {
   const subject = `New Dance Event: ${eventTitle}`;
+  eventTitle = escapeEmailHtml(eventTitle);
+  eventDate = escapeEmailHtml(eventDate);
+  eventTime = escapeEmailHtml(eventTime);
+  venue = escapeEmailHtml(venue);
+  city = escapeEmailHtml(city);
+  danceStyles = danceStyles.map(escapeEmailHtml);
+  eventUrl = escapeEmailHtml(eventUrl);
+  appBaseUrl = escapeEmailHtml(appBaseUrl);
 
   const html = `
     <!DOCTYPE html>
@@ -157,6 +171,8 @@ export function generateNewEventEmail(
 
 export function generatePasswordResetEmail(name: string | null, resetUrl: string) {
   const subject = `Reset your ${BRAND} password`;
+  name = name ? escapeEmailHtml(name) : null;
+  resetUrl = escapeEmailHtml(resetUrl);
 
   const html = `
     <!DOCTYPE html>
@@ -204,6 +220,12 @@ export function generateEventReminderEmail(
   eventUrl: string
 ) {
   const subject = `Reminder: ${eventTitle} is tomorrow!`;
+  eventTitle = escapeEmailHtml(eventTitle);
+  eventDate = escapeEmailHtml(eventDate);
+  eventTime = escapeEmailHtml(eventTime);
+  venue = escapeEmailHtml(venue);
+  address = escapeEmailHtml(address);
+  eventUrl = escapeEmailHtml(eventUrl);
 
   const html = `
     <!DOCTYPE html>

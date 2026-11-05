@@ -2,7 +2,9 @@ import { beforeAll, afterAll, expect, it, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 const session = vi.hoisted(() => ({ current: null as null | { user: { id: string; role: string; verified: boolean } } }));
-vi.mock('@/lib/auth', () => ({ auth: async () => session.current }));
+vi.mock('@/lib/auth', () => ({ auth: async () => session.current, hashPassword: async (value: string) => (await import('bcryptjs')).default.hash(value, 12) }));
+const delivery = vi.hoisted(() => ({ messages: [] as { to: string; html: string }[] }));
+vi.mock('@/lib/email', async (original) => ({ ...(await original<typeof import('@/lib/email')>()), sendEmail: async (message: { to: string; html: string }) => { delivery.messages.push(message); return { success: true, messageId: 'isolated-mock-no-delivery' }; } }));
 // Direct handler tests have no Next request store. Real HTTP browser tests
 // below separately verify public-cache invalidation after a published save.
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -15,6 +17,9 @@ import * as admin from '@/app/api/admin/events/route';
 import * as approve from '@/app/api/admin/users/[id]/approve/route';
 import * as adminUsers from '@/app/api/admin/users/route';
 import * as adminPending from '@/app/api/admin/events/pending/route';
+import * as reset from '@/app/api/auth/reset-password/route';
+import * as forgot from '@/app/api/auth/forgot-password/route';
+import { createPasswordResetToken, storePasswordResetToken, verifyPasswordResetToken } from '@/lib/password-reset';
 
 const run = `releaseqa-${Date.now()}`;
 const ids = { owner: `${run}-owner`, other: `${run}-other`, admin: `${run}-admin`, user: `${run}-user`, pending: `${run}-pending` };
@@ -33,6 +38,45 @@ beforeAll(async () => {
   console.log('Synthetic fixture prefix:', run);
 });
 afterAll(async () => { await prisma.$disconnect(); });
+
+it('stores hashed expiring reset tokens, replacing previous links', async () => {
+  const email = `${ids.owner}@example.invalid`; const first = createPasswordResetToken(); const second = createPasswordResetToken();
+  await storePasswordResetToken(email, first); await storePasswordResetToken(email, second);
+  expect(await verifyPasswordResetToken(first)).toBeNull(); expect(await verifyPasswordResetToken(second)).toEqual({ email });
+  const record = await prisma.verificationToken.findFirstOrThrow({ where: { identifier: `password-reset:${email}` } });
+  expect(record.token).not.toBe(second); expect(record.token).toHaveLength(64);
+  await prisma.verificationToken.update({ where: { token: record.token }, data: { expires: new Date('2020-01-01') } });
+  expect(await verifyPasswordResetToken(second)).toBeNull();
+});
+it('allows one real concurrent reset, rejects replay, and revokes stored sessions', async () => {
+  const email = `${ids.other}@example.invalid`; const token = createPasswordResetToken(); await storePasswordResetToken(email, token);
+  await prisma.session.create({ data: { sessionToken: `${run}-old-session`, userId: ids.other, expires: new Date('2099-01-01') } });
+  const values = ['Synthetic-winner-one!', 'Synthetic-winner-two!'];
+  const responses = await Promise.all(values.map(password => reset.POST(req('POST', { token, password }))));
+  expect(responses.map(r => r.status).sort()).toEqual([200, 400]);
+  const actual = await prisma.user.findUniqueOrThrow({ where: { id: ids.other } });
+  expect(await bcrypt.compare(values[responses.findIndex(r => r.status === 200)], actual.password!)).toBe(true);
+  expect(await verifyPasswordResetToken(token)).toBeNull(); expect(await prisma.session.count({ where: { userId: ids.other } })).toBe(0);
+  expect((await reset.POST(req('POST', { token, password: 'Synthetic-replay!' }))).status).toBe(400);
+});
+it('rejects expired reset tokens without changing credentials', async () => {
+  const email = `${ids.user}@example.invalid`; const token = createPasswordResetToken(); await storePasswordResetToken(email, token);
+  await prisma.verificationToken.updateMany({ where: { identifier: `password-reset:${email}` }, data: { expires: new Date('2020-01-01') } });
+  const before = await prisma.user.findUnique({ where: { id: ids.user } });
+  expect((await reset.POST(req('POST', { token, password: 'Synthetic-expired!' }))).status).toBe(400);
+  expect(await prisma.user.findUnique({ where: { id: ids.user } })).toEqual(before);
+});
+it('returns neutral forgot-password responses and constructs a safe mocked email without sending', async () => {
+  const previous = process.env.NEXT_PUBLIC_APP_URL; process.env.NEXT_PUBLIC_APP_URL = 'https://isolated.invalid'; delivery.messages.length = 0;
+  try {
+    const known = await forgot.POST(req('POST', { email: `${ids.owner}@example.invalid` }));
+    const unknown = await forgot.POST(req('POST', { email: `${run}-absent@example.invalid` }));
+    expect(known.status).toBe(200); expect(unknown.status).toBe(200); expect(await known.json()).toEqual(await unknown.json());
+    expect(delivery.messages).toHaveLength(1); expect(delivery.messages[0].to).toBe(`${ids.owner}@example.invalid`);
+    expect(delivery.messages[0].html).toContain('https://isolated.invalid/reset-password?token=');
+    expect(delivery.messages[0].html).not.toContain('Synthetic-QA-Only-2026!');
+  } finally { if (previous === undefined) delete process.env.NEXT_PUBLIC_APP_URL; else process.env.NEXT_PUBLIC_APP_URL = previous; }
+});
 
 it('saves and reads a real organizer event without mocked persistence', async () => {
   login('owner'); const response = await events.POST(req('POST', body)); expect(response.status).toBe(201);

@@ -159,15 +159,13 @@ input::-ms-clear {
 .font-display { font-family: var(--font-geist-sans), system-ui, sans-serif; }
 .mdl-hero { background: #10101D; }
 .mdl-hero-image {
-  background-image: url('/dance/hero-desktop.webp');
-  background-size: cover;
-  background-position: center 42%;
+  object-position: center 42%;
 }
 .mdl-hero-shade {
   background: linear-gradient(90deg,rgba(10,10,18,.91) 0%,rgba(10,10,18,.79) 35%,rgba(10,10,18,.28) 73%,rgba(10,10,18,.1) 100%);
 }
 @media (max-width: 640px) {
-  .mdl-hero-image { background-image: url('/dance/hero-mobile.webp'); background-position: center 27%; }
+  .mdl-hero-image { object-position: center 27%; }
   .mdl-hero-shade { background: linear-gradient(0deg,rgba(10,10,18,.98),rgba(10,10,18,.73) 50%,rgba(10,10,18,.08)); }
 }
 @media (prefers-reduced-motion: reduce) {

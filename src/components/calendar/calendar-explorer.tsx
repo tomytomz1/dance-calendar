@@ -33,7 +33,8 @@ export function CalendarExplorer({ events, error }: CalendarExplorerProps) {
   return (
     <>
       <section className="relative border-b border-[#664660] bg-[#171322]">
-        <div className="absolute inset-0 bg-[url('/dance/hero-desktop.webp')] bg-cover bg-center opacity-35" aria-hidden="true"/>
+        {/* eslint-disable-next-line @next/next/no-img-element -- pre-optimized artwork must be discoverable before CSS completes */}
+        <img src="/dance/hero-desktop.webp" alt="" aria-hidden="true" loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover object-center opacity-35" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#11101D] via-[#11101D]/90 to-[#11101D]/55" aria-hidden="true"/>
         <div className="relative mx-auto max-w-7xl px-5 pb-10 pt-14 sm:px-8 lg:px-10">
           <p className="text-xs font-bold uppercase tracking-[.2em] text-[#FF9189]">Find your next dance night</p>

@@ -61,7 +61,9 @@ export async function generateMetadata({ params, searchParams }: EventPageProps)
     event.description?.trim() ||
     `Join us for ${event.title} at ${venue} in ${city}, Michigan on ${dateLabel}.`;
 
-  const image = organizerImageUrl(event.imageUrl);
+  const image = (!event.isRecurring && organizerImageUrl(event.imageUrl)) ||
+    `${path}/share-image?instance=${encodeURIComponent(start.toISOString())}`;
+  const occurrencePath = getEventOccurrencePath(event, event.isRecurring ? start : null);
 
   return {
     title,
@@ -70,15 +72,16 @@ export async function generateMetadata({ params, searchParams }: EventPageProps)
     openGraph: {
       title,
       description,
-      url: path,
+      url: occurrencePath,
       type: "website",
       siteName: SITE_NAME,
-      ...(image ? { images: [{ url: image, alt: event.title }] } : {}),
+      images: [{ url: image, alt: `${event.title} — ${dateLabel}` }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: [image],
     },
   };
 }

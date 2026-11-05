@@ -35,7 +35,8 @@ export default async function EventsIndexPage() {
       <Header />
       <main className="flex-1">
         <header className="relative border-b border-[#70516B] bg-[#1C1625]">
-          <div className="absolute inset-0 bg-[url('/dance/event-salsa.webp')] bg-cover bg-center opacity-20" aria-hidden="true" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- pre-optimized artwork; eager discovery improves the largest paint */}
+          <img src="/dance/event-salsa.webp" alt="" aria-hidden="true" loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover object-center opacity-20" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#11101D] via-[#11101D]/90 to-[#11101D]/55" aria-hidden="true" />
           <div className="relative mx-auto max-w-6xl px-5 py-12 sm:px-8">
             <p className="text-xs font-bold uppercase tracking-[.2em] text-[#FF9189]">Make your next night unforgettable</p>

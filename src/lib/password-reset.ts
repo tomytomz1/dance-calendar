@@ -66,3 +66,28 @@ export async function consumePasswordResetToken(token: string): Promise<void> {
     where: { token: hashed },
   });
 }
+
+/** Claim the token and change credentials atomically: a racing request must lose. */
+export async function resetPasswordWithToken(token: string, passwordHash: string): Promise<boolean> {
+  const hashed = hashToken(token);
+  return prisma.$transaction(async (tx) => {
+    const record = await tx.verificationToken.findFirst({
+      where: { token: hashed, identifier: { startsWith: RESET_IDENTIFIER_PREFIX }, expires: { gt: new Date() } },
+    });
+    if (!record) return false;
+    const claimed = await tx.verificationToken.deleteMany({
+      where: { token: hashed, identifier: record.identifier, expires: { gt: new Date() } },
+    });
+    if (claimed.count !== 1) return false;
+    const email = record.identifier.slice(RESET_IDENTIFIER_PREFIX.length);
+    const user = await tx.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' }, password: { not: null } },
+      select: { id: true, password: true },
+    });
+    if (!user?.password) return false;
+    await tx.user.update({ where: { id: user.id }, data: { password: passwordHash } });
+    await tx.verificationToken.deleteMany({ where: { identifier: record.identifier } });
+    await tx.session.deleteMany({ where: { userId: user.id } });
+    return true;
+  });
+}
