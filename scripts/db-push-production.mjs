@@ -1,6 +1,7 @@
 /**
- * Syncs the production database schema with prisma/schema.prisma before
- * `next build`. Runs only for Vercel production builds (VERCEL_ENV=production):
+ * Legacy manual schema-sync entry point. NOT invoked by npm run build.
+ * Requires separate explicit production approval and a verified backup.
+ * Runs only when VERCEL_ENV=production:
  * preview and development deployments share the same database variables, so
  * letting them push would apply unmerged branch schemas to the live database.
  *
