@@ -107,6 +107,7 @@ export function Header() {
 
           <Link
             href="/"
+            prefetch={false}
             className="flex h-full items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity min-w-0"
             onClick={(e) => {
               if (e.ctrlKey || e.metaKey || e.button !== 0) return;
@@ -144,7 +145,7 @@ export function Header() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Link href="/#discover" className="hover:text-[#FF8179] transition-colors">Cities</Link>
+          <Link href="/#discover" prefetch={false} className="hover:text-[#FF8179] transition-colors">Cities</Link>
           <Link href="/about" className="hover:text-[#FF8179] transition-colors">About</Link>
         </nav>
         <div className="flex items-center gap-2 flex-shrink-0">

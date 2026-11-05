@@ -4,10 +4,10 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 await import('./assert-isolated-audit.mjs');
 
-// The fixture is five public source files from the last audited release. Both
+// The fixture is public source from the last audited release. Both
 // builds use this checkout, dependency lockfile, environment and isolated DB.
 const fixture = JSON.parse(await readFile('tests/fixtures/calendar-performance-baseline.json', 'utf8'));
-const allowed = ['event-calendar', 'month-view', 'week-view', 'mobile-month-view', 'mobile-week-view'].map(name => `src/components/calendar/${name}.tsx`);
+const allowed = [...['event-calendar', 'month-view', 'week-view', 'mobile-month-view', 'mobile-week-view'].map(name => `src/components/calendar/${name}.tsx`), 'src/components/layout/header.tsx'];
 if (fixture.baselineReleaseSha !== '065d916268ec5a1e0f748c2cb96be09b8ab7b642' || Object.keys(fixture.files).sort().join() !== [...allowed].sort().join()) throw new Error('Unexpected performance baseline');
 const candidate = new Map();
 for (const file of allowed) {
