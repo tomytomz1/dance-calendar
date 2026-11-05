@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { writeFile, mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import { chromiumArgs } from './chromium-args.mjs';
 import { PrismaClient } from '@prisma/client';
 await import('../../scripts/assert-isolated-audit.mjs');
 const requireTool = createRequire('/tmp/mdl-qa-browser/package.json');
@@ -25,7 +26,7 @@ await db.recurrenceRule.upsert({ where: { eventId: 'releaseqa-browser-series' },
 const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-H', '127.0.0.1', '-p', '3100'], { env: { ...process.env, PORT: '3100', AUTH_URL: base, NEXTAUTH_URL: base, NEXT_PUBLIC_APP_URL: base, NODE_ENV: 'production' }, stdio: ['ignore', 'pipe', 'pipe'] });
 server.stderr.on('data', chunk => { const text = chunk.toString(); if (/Error|error/.test(text)) results.errors.push(text.slice(0, 600)); });
 for (let i = 0; i < 100; i++) { try { if ((await fetch(base)).ok) break; } catch {} await new Promise(resolve => setTimeout(resolve, 300)); }
-const browser = await chromium.launch({ executablePath: await chromiumBinary.executablePath(), args: chromiumBinary.args.filter(arg => arg !== '--single-process'), headless: true });
+const browser = await chromium.launch({ executablePath: await chromiumBinary.executablePath(), args: chromiumArgs, headless: true });
 const check = async (name, fn) => { let row; try { await fn(); row = { name, status: 'PASS' }; } catch (error) { row = { name, status: 'FAIL', error: error.message.slice(0, 700) }; } results.checks.push(row); console.log('QA_CHECK ' + JSON.stringify(row)); };
 const authCookies = new Map();
 const context = async (options = {}) => {
@@ -108,7 +109,14 @@ await check('Crafted login callback cannot navigate away from the application', 
 });
 await check('Real admin session approves a synthetic pending organizer', async () => {
   const c = await context(); const page = await login(c, 'admin', '/admin');
-  const approve = page.getByRole('button', { name: 'Approve organizer Synthetic pending', exact: true }); await approve.waitFor();
+  const expected = await db.event.count(); await page.getByRole('tab', { name: `Events (${expected})`, exact: true }).waitFor();
+  await page.getByRole('tab', { name: /^Organizers \(/ }).click();
+  const approve = page.getByRole('button', { name: 'Approve organizer Synthetic pending', exact: true });
+  for (let i = 0; i < 10 && !await approve.isVisible(); i++) {
+    const next = page.getByRole('tabpanel').getByRole('button', { name: 'Next', exact: true });
+    if (!await next.isEnabled()) break; await next.click(); await page.getByRole('tab', { name: /^Organizers \(/ }).waitFor();
+  }
+  await approve.waitFor();
   const response = page.waitForResponse(r => r.url().endsWith(`/api/admin/users/${ids.pending}/approve`) && r.request().method() === 'POST'); await approve.click();
   assert.equal((await response).status(), 200); assert.equal((await db.user.findUniqueOrThrow({ where: { id: ids.pending } })).verified, true); await c.close();
 });

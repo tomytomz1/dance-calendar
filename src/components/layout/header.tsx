@@ -43,9 +43,11 @@ export function Header() {
     const tick = () => void fetchPendingCounts();
     const id = setTimeout(tick, 0);
     const interval = setInterval(tick, 60000);
+    window.addEventListener("admin:moderation-changed", tick);
     return () => {
       clearTimeout(id);
       clearInterval(interval);
+      window.removeEventListener("admin:moderation-changed", tick);
     };
   }, [isAdmin, fetchPendingCounts]);
 

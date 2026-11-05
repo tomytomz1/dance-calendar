@@ -10,6 +10,8 @@ import * as event from '@/app/api/events/[id]/route';
 import * as instances from '@/app/api/events/[id]/instances/route';
 import * as admin from '@/app/api/admin/events/route';
 import * as approve from '@/app/api/admin/users/[id]/approve/route';
+import * as adminUsers from '@/app/api/admin/users/route';
+import * as adminPending from '@/app/api/admin/events/pending/route';
 
 const run = `releaseqa-${Date.now()}`;
 const ids = { owner: `${run}-owner`, other: `${run}-other`, admin: `${run}-admin`, user: `${run}-user`, pending: `${run}-pending` };
@@ -119,4 +121,13 @@ it('keeps a published event URL stable when its title changes', async () => {
   const e = await make('stable-url'); await prisma.event.update({ where: { id: e.id }, data: { slug: `${run}-shared-link` } }); login('owner');
   const r = await event.PATCH(req('PATCH', { title: 'Corrected event title' }), params(e.id)); expect(r.status).toBe(200);
   expect((await r.json()).slug).toBe(`${run}-shared-link`);
+});
+it('reports global admin totals independently of paginated rows', async () => {
+  login('admin');
+  const all = await admin.GET(new Request('https://isolated.invalid/api/admin/events?limit=1'));
+  expect((await all.json()).length).toBe(1); expect(Number(all.headers.get('X-Total-Count'))).toBe(await prisma.event.count());
+  const pending = await adminPending.GET(new Request('https://isolated.invalid/api/admin/events/pending?limit=1'));
+  expect(Number(pending.headers.get('X-Total-Count'))).toBe(await prisma.event.count({ where: { status: 'PENDING_APPROVAL' } }));
+  const users = await (await adminUsers.GET(new Request('https://isolated.invalid/api/admin/users?limit=1'))).json();
+  expect(users.pendingOrganizersCount).toBe(await prisma.user.count({ where: { role: 'ORGANIZER', verified: false } }));
 });
