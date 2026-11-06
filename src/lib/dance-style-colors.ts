@@ -1,6 +1,6 @@
 import { DANCE_STYLES } from "@/lib/types";
 
-/** Tailwind classes for chip/badge backgrounds and text (light mode). */
+/** Tailwind classes for chip/badge backgrounds and text. Chip colours keep white text at WCAG AA (4.5:1). */
 export type StyleChipClasses = {
   chip: string;
   badge: string;
@@ -24,23 +24,23 @@ const STYLE_CHIP_MAP: Record<string, StyleChipClasses> = {
     badge: "bg-purple-100 text-purple-800",
   },
   Swing: {
-    chip: "bg-teal-600 hover:bg-teal-700 text-white",
+    chip: "bg-teal-700 hover:bg-teal-800 text-white",
     badge: "bg-teal-100 text-teal-800",
   },
   "Lindy Hop": {
-    chip: "bg-cyan-600 hover:bg-cyan-700 text-white",
+    chip: "bg-cyan-700 hover:bg-cyan-800 text-white",
     badge: "bg-cyan-100 text-cyan-800",
   },
   "West Coast Swing": {
-    chip: "bg-sky-600 hover:bg-sky-700 text-white",
+    chip: "bg-sky-700 hover:bg-sky-800 text-white",
     badge: "bg-sky-100 text-sky-800",
   },
   Ballroom: {
-    chip: "bg-amber-600 hover:bg-amber-700 text-white",
+    chip: "bg-amber-700 hover:bg-amber-800 text-white",
     badge: "bg-amber-100 text-amber-800",
   },
   Latin: {
-    chip: "bg-orange-600 hover:bg-orange-700 text-white",
+    chip: "bg-orange-700 hover:bg-orange-800 text-white",
     badge: "bg-orange-100 text-orange-800",
   },
   Tango: {
@@ -64,7 +64,7 @@ const STYLE_CHIP_MAP: Record<string, StyleChipClasses> = {
     badge: "bg-lime-100 text-lime-900",
   },
   Afrobeats: {
-    chip: "bg-yellow-600 hover:bg-yellow-700 text-white",
+    chip: "bg-yellow-800 hover:bg-yellow-900 text-white",
     badge: "bg-yellow-100 text-yellow-900",
   },
   Reggaeton: {
@@ -83,11 +83,11 @@ const FALLBACK_PALETTE: StyleChipClasses[] = [
     badge: "bg-blue-100 text-blue-800",
   },
   {
-    chip: "bg-emerald-600 hover:bg-emerald-700 text-white",
+    chip: "bg-emerald-700 hover:bg-emerald-800 text-white",
     badge: "bg-emerald-100 text-emerald-800",
   },
   {
-    chip: "bg-amber-600 hover:bg-amber-700 text-white",
+    chip: "bg-amber-700 hover:bg-amber-800 text-white",
     badge: "bg-amber-100 text-amber-800",
   },
 ];

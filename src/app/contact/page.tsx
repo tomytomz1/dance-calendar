@@ -19,8 +19,6 @@ export default function ContactPage() {
       <p>
         Email:{" "}
         <a href="mailto:hello@michigandance.life">hello@michigandance.life</a>
-        {" "}
-        (update this address to your real inbox in production)
       </p>
       <p>
         To list an event,{" "}

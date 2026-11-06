@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { Fragment, useRef, useMemo } from "react";
 import { motion, AnimatePresence, PanInfo, useDragControls } from "framer-motion";
 import {
   format,
@@ -11,13 +11,15 @@ import {
   addDays,
   isSameMonth,
   isSameDay,
-  isToday,
 } from "date-fns";
 import { cn } from "@/lib/utils";
+import { indexCalendarEvents, calendarDayKey } from "@/lib/calendar-event-days";
+import { isSiteToday } from "@/lib/timezone";
 import { useScrollSync } from "@/hooks/use-scroll-sync";
 import type { CalendarEvent } from "@/lib/types";
 import { CalendarEventChip } from "./calendar-event-chip";
 import { CalendarEventListItem } from "./calendar-event-list-item";
+import { MobileAgendaEmpty } from "./mobile-agenda-empty";
 
 interface MobileMonthViewProps {
   currentDate: Date;
@@ -27,6 +29,8 @@ interface MobileMonthViewProps {
   onEventClick: (event: CalendarEvent) => void;
   onSwipe: (direction: number) => void;
 }
+
+const SWIPE_THRESHOLD = 50;
 
 export function MobileMonthView({
   currentDate,
@@ -44,10 +48,8 @@ export function MobileMonthView({
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
   const calendarDays: Date[] = [];
-  let day = calendarStart;
-  while (day <= calendarEnd) {
+  for (let day = calendarStart; day <= calendarEnd; day = addDays(day, 1)) {
     calendarDays.push(day);
-    day = addDays(day, 1);
   }
 
   const { registerSection, scrollToSection } = useScrollSync(
@@ -57,50 +59,38 @@ export function MobileMonthView({
     { viewType: "month", scrollRoot: "viewport" }
   );
 
+  const eventDays = useMemo(() => indexCalendarEvents(events), [events]);
+  const getEventsForDay = (date: Date) => eventDays.get(calendarDayKey(date)) ?? [];
+
   const handleDayClick = (d: Date) => {
     onDateSelect(d);
     if (getEventsForDay(d).length > 0) scrollToSection(d);
   };
 
   const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const threshold = 50;
-    if (info.offset.x > threshold) {
-      onSwipe(-1);
-    } else if (info.offset.x < -threshold) {
-      onSwipe(1);
-    }
-  };
-
-  const getEventsForDay = (date: Date) => {
-    return events.filter((event) =>
-      isSameDay(new Date(event.start), date)
-    );
+    if (info.offset.x > SWIPE_THRESHOLD) onSwipe(-1);
+    else if (info.offset.x < -SWIPE_THRESHOLD) onSwipe(1);
   };
 
   const variants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? "100%" : "-100%",
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (direction: number) => ({
-      x: direction < 0 ? "100%" : "-100%",
-      opacity: 0,
-    }),
+    enter: (d: number) => ({ x: d > 0 ? "100%" : "-100%", opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (d: number) => ({ x: d < 0 ? "100%" : "-100%", opacity: 0 }),
   };
 
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-  const daysWithEvents = calendarDays.filter((d) => getEventsForDay(d).length > 0);
+  // Only this month's days go in the agenda (leading/trailing days belong to
+  // the neighbouring months and would be filtered out by scroll sync anyway).
+  const daysWithEvents = calendarDays.filter(
+    (d) => isSameMonth(d, currentDate) && getEventsForDay(d).length > 0
+  );
 
   return (
     <div className="flex w-full max-w-full flex-col overflow-x-hidden">
-      <div className="overflow-x-hidden">
-        <AnimatePresence initial={false} custom={direction} mode="wait">
+      <div className="relative overflow-x-hidden">
+        <AnimatePresence initial={false} custom={direction} mode="popLayout">
           <motion.div
+            data-testid="calendar-swipe-surface"
             key={monthStart.toISOString()}
             custom={direction}
             variants={variants}
@@ -114,72 +104,75 @@ export function MobileMonthView({
             drag="x"
             dragListener={false}
             dragControls={dragControls}
+            dragDirectionLock
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0}
             dragMomentum={false}
             onDragEnd={handleDragEnd}
             className="w-full shrink-0 overflow-x-hidden"
           >
+            {/* pan-y: vertical page scrolling keeps working over the grid; horizontal swipes change month */}
             <div
               onPointerDown={(e) => dragControls.start(e)}
-              style={{ touchAction: "none" }}
+              style={{ touchAction: "pan-y" }}
               className="shrink-0"
             >
-              <div className="grid grid-cols-7 border-b bg-muted/30">
+              <div className="grid grid-cols-7 border-b border-[#74526C] bg-[#22182A]" aria-hidden="true">
                 {weekDays.map((d) => (
-                  <div
-                    key={d}
-                    className="text-center py-2 text-xs font-medium text-muted-foreground"
-                  >
+                  <div key={d} className="py-2 text-center text-xs font-semibold text-[#D9C8D8]">
                     {d}
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 shrink-0">
+              <div className="grid shrink-0 grid-cols-7 bg-[#191421]">
                 {calendarDays.map((day) => {
                   const eventsForDay = getEventsForDay(day);
                   const isCurrentMonth = isSameMonth(day, currentDate);
-                  const isCurrentDay = isToday(day);
+                  const isCurrentDay = isSiteToday(day);
                   const isSelected = isSameDay(day, currentDate);
 
                   return (
                     <button
+                      type="button"
                       key={day.toISOString()}
                       onClick={() => handleDayClick(day)}
+                      aria-pressed={isSelected}
+                      aria-label={
+                        [format(day, "d"), ...eventsForDay.slice(0, 2).map(event => event.title),
+                          ...(eventsForDay.length > 2 ? [`+${eventsForDay.length - 2}`] : [])].join(" ") +
+                        ", " + format(day, "EEEE, MMMM d, yyyy") +
+                        (isCurrentDay ? ", today" : "") +
+                        (eventsForDay.length
+                          ? `, ${eventsForDay.length} ${eventsForDay.length === 1 ? "event" : "events"}`
+                          : ", no events")
+                      }
                       className={cn(
-                        "flex flex-col items-center justify-center p-1 border-r border-b last:border-r-0 min-h-[44px] transition-colors",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                        !isCurrentMonth && "bg-muted/20",
-                        isSelected && "bg-primary/5",
-                        "hover:bg-muted/50 active:bg-muted"
+                        "flex min-h-[52px] min-w-0 flex-col items-center justify-start border-b border-r border-[#6B5065]/50 p-1 transition-colors [&:nth-child(7n)]:border-r-0",
+                        "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#FF8179]",
+                        !isCurrentMonth && "bg-[#14121D]",
+                        isSelected && "bg-[#F46157]/15 ring-1 ring-inset ring-[#F46157]",
+                        "active:bg-[#2C2034]"
                       )}
                     >
                       <span
                         className={cn(
-                          "w-7 h-7 flex items-center justify-center rounded-full text-sm",
-                          !isCurrentMonth && "text-muted-foreground/50",
-                          isCurrentDay &&
-                            "bg-primary text-primary-foreground font-bold ring-2 ring-primary ring-offset-1",
-                          isSelected && !isCurrentDay && "bg-secondary font-medium"
+                          "flex h-7 w-7 items-center justify-center rounded-full text-sm text-[#FFF1E5]",
+                          !isCurrentMonth && "text-[#88788D]",
+                          isSelected && "bg-[#F46157] font-extrabold text-[#160E18]",
+                          isCurrentDay && !isSelected && "border border-[#FF8179] font-bold text-[#FF8179]"
                         )}
                       >
                         {format(day, "d")}
-                      </span>
-                      <div className="flex flex-col gap-0.5 w-full mt-0.5 px-0.5 min-w-0">
+                      </span>{" "}
+                      <div className="mt-0.5 flex w-full min-w-0 flex-col gap-0.5 px-0.5">
                         {eventsForDay.slice(0, 2).map((event) => (
-                          <CalendarEventChip
-                            key={event.instanceKey ?? event.id}
-                            event={event}
-                            variant="month-compact"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEventClick(event);
-                            }}
-                          />
+                          <Fragment key={event.instanceKey ?? event.id}>
+                            <CalendarEventChip event={event} variant="month-compact" />{" "}
+                          </Fragment>
                         ))}
                         {eventsForDay.length > 2 && (
-                          <span className="text-xs text-muted-foreground text-center">
+                          <span className="text-center text-[10px] font-semibold text-[#E8D6EA]">
                             +{eventsForDay.length - 2}
                           </span>
                         )}
@@ -195,8 +188,12 @@ export function MobileMonthView({
 
       <div
         ref={scrollContainerRef}
-        className="touch-pan-y border-t bg-card px-4 pb-24 pt-0 space-y-6"
+        className="touch-pan-y space-y-6 border-t border-[#70516B] bg-[#201828] px-4 pb-10 pt-3"
       >
+        <p className="text-xs text-[#BFAEBD]">Swipe the calendar to change month · Times are Michigan time</p>
+        {daysWithEvents.length === 0 && (
+          <MobileAgendaEmpty label={`No dances listed in ${format(currentDate, "MMMM")} yet.`} />
+        )}
         {daysWithEvents.map((d) => {
           const dayEvents = getEventsForDay(d);
           return (
@@ -204,9 +201,15 @@ export function MobileMonthView({
               key={d.toISOString()}
               ref={(el) => registerSection(d, el)}
               data-date={d.toISOString()}
+              aria-label={format(d, "EEEE, MMMM d")}
               className="space-y-2"
             >
-              <h3 className="py-1 text-sm font-semibold text-muted-foreground">
+              <h3
+                className={cn(
+                  "scroll-mt-24 py-1 text-sm font-bold",
+                  isSameDay(d, currentDate) ? "text-[#FF9A93]" : "text-[#D9C8D8]"
+                )}
+              >
                 {format(d, "EEEE, MMMM d")}
               </h3>
               {dayEvents.map((event) => (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
+import { formatInSiteTimeZone } from "@/lib/timezone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -85,7 +85,7 @@ function getRecurrenceLabel(event: EventData): string | null {
   }
 
   if (frequency === "MONTHLY") {
-    const day = new Date(event.startTime).getDate();
+    const day = Number(formatInSiteTimeZone(event.startTime, "d"));
     const suffix =
       day % 10 === 1 && day !== 11
         ? "st"
@@ -129,7 +129,7 @@ export function OrganizerEventList({ initialEvents }: OrganizerEventListProps) {
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
                   <span>
-                    {format(new Date(event.startTime), "PPP 'at' p")}
+                    {formatInSiteTimeZone(new Date(event.startTime), "PPP 'at' p")}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

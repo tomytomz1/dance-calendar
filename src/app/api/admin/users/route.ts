@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const organizerSkip = (organizerPage - 1) * limit;
     const dancerSkip = (dancerPage - 1) * limit;
 
-    const [organizers, dancers, totalOrganizers, totalDancers] =
+    const [organizers, dancers, totalOrganizers, totalDancers, pendingOrganizersCount] =
       await Promise.all([
         prisma.user.findMany({
           where: { role: "ORGANIZER" },
@@ -68,6 +68,7 @@ export async function GET(request: Request) {
         }),
         prisma.user.count({ where: { role: "ORGANIZER" } }),
         prisma.user.count({ where: { role: "USER" } }),
+        prisma.user.count({ where: { role: "ORGANIZER", verified: false } }),
       ]);
 
     return NextResponse.json({
@@ -75,6 +76,7 @@ export async function GET(request: Request) {
       dancers,
       totalOrganizers,
       totalDancers,
+      pendingOrganizersCount,
     });
   } catch (error) {
     console.error("Error fetching users:", error);

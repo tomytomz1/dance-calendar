@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateInstancesForEvent, getUpcomingInstances } from "@/lib/recurrence";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
+import { canManageEvents } from "@/lib/event-authorization";
 
 export async function GET(
   request: Request,
@@ -60,6 +61,9 @@ export async function POST(
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (!canManageEvents(session.user)) {
+      return NextResponse.json({ error: "Verified organizer access is required" }, { status: 403 });
+    }
 
     const event = await prisma.event.findUnique({
       where: { id },
@@ -89,18 +93,7 @@ export async function POST(
       );
     }
 
-    try {
-      await prisma.eventInstance.deleteMany({
-        where: {
-          eventId: id,
-          startTime: { gt: new Date() },
-        },
-      });
-    } catch (err) {
-      console.error("Failed to clear existing future instances:", err);
-    }
-
-    const count = await generateInstancesForEvent(id);
+    const count = await generateInstancesForEvent(id, { replaceFuture: true });
 
     return NextResponse.json({
       message: `Generated ${count} instances`,

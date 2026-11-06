@@ -71,7 +71,7 @@ export default function UnsubscribePage() {
             )}
             <p className="text-sm text-muted-foreground mt-4">
               Signed in? Manage preferences on your{" "}
-              <Link href="/profile" className="text-primary hover:underline">
+              <Link href="/profile" className="text-primary underline underline-offset-4">
                 profile
               </Link>
               .

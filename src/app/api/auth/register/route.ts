@@ -73,20 +73,7 @@ export async function POST(request: Request) {
       name: validatedData.name,
     });
 
-    return NextResponse.json(
-      {
-        message: validatedData.isOrganizer
-          ? "Registration successful! Your organizer account is pending approval."
-          : "Registration successful!",
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        },
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ message: REGISTER_NEUTRAL_MESSAGE }, { status: 200 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       const zodError = error as z.ZodError;

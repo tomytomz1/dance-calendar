@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
+import { createHash } from "node:crypto";
 import { prisma } from "./prisma";
 import { linkSubscriptionToUser } from "./subscription-link";
 import type { UserRole } from "@prisma/client";
@@ -30,6 +31,7 @@ declare module "@auth/core/jwt" {
     id: string;
     role: UserRole;
     verified: boolean;
+    credentialVersion?: string;
   }
 }
 
@@ -126,11 +128,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { id: true, role: true, verified: true },
+          select: { id: true, role: true, verified: true, password: true },
         });
         if (!dbUser) {
-          return {} as typeof token;
+          return null;
         }
+        // A one-way fingerprint stays inside the encrypted JWT. Never put the
+        // password/hash in the public session; changing it revokes old JWTs.
+        const version = createHash('sha256').update(dbUser.password ?? 'passwordless').digest('hex');
+        if (user) token.credentialVersion = version;
+        else if (token.credentialVersion !== version) return null;
         token.role = dbUser.role;
         token.verified = dbUser.verified;
       }

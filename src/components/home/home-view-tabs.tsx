@@ -81,7 +81,7 @@ export function HomeViewTabs({
   if (!hydrated) {
     return (
       <div className="flex flex-col flex-1 w-full">
-        <div className="px-4 pt-3 flex justify-center" aria-hidden>
+        <div className="px-4 pt-5 flex justify-center" aria-hidden>
           <div className="h-11 w-full max-w-sm rounded-lg bg-muted/80 animate-pulse" />
         </div>
         <div className="mx-4 mt-3 min-h-[40vh] rounded-lg bg-muted/40 animate-pulse" />
@@ -99,20 +99,20 @@ export function HomeViewTabs({
       onValueChange={handleTabChange}
       className="flex flex-col flex-1 w-full"
     >
-      <div className="px-4 pt-3 flex justify-center">
+      <div className="px-4 pt-5 flex justify-center">
         <TabsList
-          className="grid h-11 w-full max-w-sm grid-cols-2 gap-1 p-1"
+          className="grid h-12 w-full max-w-sm grid-cols-2 gap-1 rounded-full border border-[#72516B] bg-[#272033] p-1"
           aria-label="Home event views"
         >
           <TabsTrigger
             value="list"
-            className="order-1 h-full rounded-md px-3 py-0 text-sm font-medium md:order-2"
+            className="order-1 h-full rounded-full px-3 py-0 text-sm font-bold md:order-2"
           >
             List
           </TabsTrigger>
           <TabsTrigger
             value="calendar"
-            className="order-2 h-full rounded-md px-3 py-0 text-sm font-medium md:order-1"
+            className="order-2 h-full rounded-full px-3 py-0 text-sm font-bold md:order-1"
           >
             Calendar
           </TabsTrigger>

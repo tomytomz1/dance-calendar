@@ -6,6 +6,8 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { CalendarLoadError } from "@/components/calendar/calendar-load-error";
 import { HomeHero } from "@/components/home/home-hero";
 import { HomeViewTabs } from "@/components/home/home-view-tabs";
+import { FeaturedEvents } from "@/components/home/featured-events";
+import { DiscoverSection } from "@/components/home/discover-section";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { buildItemListJsonLd, SITE_NAME } from "@/lib/seo";
 import { buildPublicPageMetadata } from "@/lib/seo-metadata";
@@ -81,14 +83,25 @@ export default async function HomePage() {
           topCities={topCities}
           cityCounts={cityCounts}
         />
-        <Suspense fallback={<CalendarSkeleton />}>
-          <HomeViewTabs
-            calendarEvents={calendarEvents}
-            listEvents={upcomingListEvents}
-            calendarError={error}
-            CalendarErrorComponent={CalendarLoadError}
-          />
-        </Suspense>
+        <FeaturedEvents events={upcomingListEvents} />
+        <section id="calendar" className="mx-auto w-full max-w-7xl px-5 pb-16 sm:px-8 lg:px-10" aria-labelledby="calendar-section-heading">
+          <div className="mb-6">
+            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#F47C74]">Explore Michigan events</p>
+            <h2 id="calendar-section-heading" className="mt-2 font-display text-3xl font-extrabold tracking-tight text-[#FFF1E5] sm:text-4xl">Your next dance night starts here</h2>
+            <p className="mt-3 text-[#CDBDCA]">Browse the actual calendar or find upcoming events by date.</p>
+          </div>
+          <div className="overflow-hidden rounded-2xl border border-[#654C66] bg-[#16111D] shadow-2xl">
+            <Suspense fallback={<CalendarSkeleton />}>
+              <HomeViewTabs
+                calendarEvents={calendarEvents}
+                listEvents={upcomingListEvents}
+                calendarError={error}
+                CalendarErrorComponent={CalendarLoadError}
+              />
+            </Suspense>
+          </div>
+        </section>
+        <DiscoverSection cities={topCities} />
       </main>
       <SiteFooter />
     </div>

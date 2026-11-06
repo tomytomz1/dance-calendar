@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 interface HeaderMobileNavProps {
   children: React.ReactNode;
@@ -15,6 +15,7 @@ interface HeaderMobileNavProps {
  */
 export function HeaderMobileNav({ children }: HeaderMobileNavProps) {
   const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -25,7 +26,7 @@ export function HeaderMobileNav({ children }: HeaderMobileNavProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="md:hidden"
+        className="lg:hidden"
         type="button"
         aria-label="Open menu"
       >
@@ -35,14 +36,20 @@ export function HeaderMobileNav({ children }: HeaderMobileNavProps) {
   }
 
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden">
+        <Button variant="ghost" size="icon" className="lg:hidden">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Open menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72">
+      <SheetContent side="left" className="w-72" onClick={(event) => {
+        if (event.target instanceof Element && event.target.closest("a[href]")) {
+          setOpen(false);
+        }
+      }}>
+        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+        <SheetDescription className="sr-only">Browse dance events, calendar, and account pages.</SheetDescription>
         {children}
       </SheetContent>
     </Sheet>

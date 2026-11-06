@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, LogOut, User, Settings, Calendar, LayoutDashboard } from "lucide-react";
+import { Plus, LogOut, User, Settings, Calendar, LayoutDashboard, ChevronDown } from "lucide-react";
 import { HeaderMobileNav } from "@/components/layout/header-mobile-nav";
 
 export function Header() {
@@ -43,15 +43,17 @@ export function Header() {
     const tick = () => void fetchPendingCounts();
     const id = setTimeout(tick, 0);
     const interval = setInterval(tick, 60000);
+    window.addEventListener("admin:moderation-changed", tick);
     return () => {
       clearTimeout(id);
       clearInterval(interval);
+      window.removeEventListener("admin:moderation-changed", tick);
     };
   }, [isAdmin, fetchPendingCounts]);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center justify-between gap-2 w-full px-2 py-2 sm:px-4 min-w-0">
+    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0D101B]/95 shadow-[0_2px_30px_rgba(0,0,0,.2)] backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-10 min-w-0">
         <div className="flex items-center gap-1 min-w-0 flex-shrink">
           <HeaderMobileNav>
             <nav className="flex flex-col gap-4 mt-8">
@@ -60,8 +62,14 @@ export function Header() {
                 className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors"
               >
                 <Calendar className="h-5 w-5" />
-                Events
+                Explore Events
               </Link>
+              <Link href="/calendar" className="flex items-center gap-2 text-lg font-medium hover:text-primary transition-colors">
+                <Calendar className="h-5 w-5" /> Dance Calendar
+              </Link>
+              <Link href="/events/style/salsa" className="text-lg font-medium hover:text-primary">Salsa Events</Link>
+              <Link href="/events/style/bachata" className="text-lg font-medium hover:text-primary">Bachata Events</Link>
+              <Link href={canCreateEvents && isVerified ? "/organizer/events/new" : "/register"} className="text-lg font-medium hover:text-primary">List your event</Link>
               {canCreateEvents && (
                 <Link
                   href="/organizer/events"
@@ -99,6 +107,7 @@ export function Header() {
 
           <Link
             href="/"
+            prefetch={false}
             className="flex h-full items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity min-w-0"
             onClick={(e) => {
               if (e.ctrlKey || e.metaKey || e.button !== 0) return;
@@ -108,22 +117,41 @@ export function Header() {
             aria-label="Go to MichiganDance.Life homepage"
           >
             <Image
-              src="/michigandancelife-header-logo.png"
-              alt="MichiganDance.Life dance events calendar logo"
-              width={400}
-              height={93}
-              className="h-9 w-auto sm:h-12 md:h-16 max-w-[60vw]"
+              src="/brand/logo-on-dark.svg"
+              alt="Michigan Dance Life"
+              width={465}
+              height={82}
+              className="h-10 w-auto max-w-[55vw] sm:h-12"
               priority
             />
           </Link>
         </div>
 
+        <nav aria-label="Main navigation" className="hidden lg:flex items-center gap-8 text-sm font-semibold text-[#F7EFE5]">
+          <Link href="/calendar" className="hover:text-[#FF8179] transition-colors">Explore Events</Link>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger className="inline-flex items-center gap-1 rounded-md outline-none transition-colors hover:text-[#FF8179] focus-visible:ring-2 focus-visible:ring-[#FF8179] data-[state=open]:text-[#FF8179]">
+              Dance Styles <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" sideOffset={12} className="w-48 rounded-xl border-[#6B4A6A] bg-[#1B1424] p-2 text-[#F7EFE5] shadow-2xl">
+              {["Salsa", "Bachata", "Kizomba", "Swing", "Ballroom"].map(style => (
+                <DropdownMenuItem key={style} asChild className="cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold focus:bg-white/10 focus:text-[#FF8179]">
+                  <Link href={"/events/style/" + style.toLowerCase()}>{style}</Link>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="bg-white/10" />
+              <DropdownMenuItem asChild className="cursor-pointer rounded-lg px-3 py-2 text-sm font-semibold text-[#FF9A93] focus:bg-white/10 focus:text-[#FF8179]">
+                <Link href="/events">All events</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Link href="/#discover" prefetch={false} className="hover:text-[#FF8179] transition-colors">Cities</Link>
+          <Link href="/about" className="hover:text-[#FF8179] transition-colors">About</Link>
+        </nav>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button asChild size="sm" variant="ghost" className="hidden sm:flex">
-            <Link href="/events">Events</Link>
-          </Button>
+          <Link href={canCreateEvents && isVerified ? "/organizer/events/new" : "/register"} className="hidden sm:inline-flex min-h-10 items-center rounded-full bg-[#F46157] px-5 text-sm font-bold text-[#160E18] hover:bg-[#FF8179]">List an Event</Link>
           {canCreateEvents && isVerified && (
-            <Button asChild size="sm" className="flex">
+            <Button asChild size="sm" variant="outline" className="hidden xl:flex">
               <Link
                 href="/organizer/events/new"
                 className="flex items-center gap-1"

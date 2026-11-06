@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { addWeeks, addMonths, subWeeks, subMonths } from "date-fns";
 import { CalendarHeader } from "./calendar-header";
 import { WeekView } from "./week-view";
@@ -9,15 +9,31 @@ import { MobileWeekView } from "./mobile-week-view";
 import { MobileMonthView } from "./mobile-month-view";
 import { EventDetailSheet } from "../events/event-detail-sheet";
 import type { CalendarEvent } from "@/lib/types";
+import { siteNow, toSiteWallClock } from "@/lib/timezone";
+import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 
 interface EventCalendarProps {
   events: CalendarEvent[];
+  /** Michigan wall-clock date to open on (defaults to today in Michigan). */
   initialDate?: Date;
 }
 
-export function EventCalendar({ events, initialDate = new Date() }: EventCalendarProps) {
-  const [currentDate, setCurrentDate] = useState(initialDate);
-  const [view, setView] = useState<"week" | "month">("week");
+export function EventCalendar({ events: rawEvents, initialDate }: EventCalendarProps) {
+  const isMobile = useMobileViewport();
+  const sheetTriggerRef = useRef<HTMLElement | null>(null);
+  // Bucket and label events in Michigan time for every visitor, wherever their
+  // device clock is set. The original instant is kept in occurrenceStart.
+  const events = useMemo(
+    () =>
+      rawEvents.map((event) => ({
+        ...event,
+        start: toSiteWallClock(event.start),
+        end: toSiteWallClock(event.end),
+      })),
+    [rawEvents]
+  );
+  const [currentDate, setCurrentDate] = useState(() => initialDate ?? siteNow());
+  const [view, setView] = useState<"week" | "month">("month");
   const [direction, setDirection] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -38,7 +54,7 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
 
   const handleToday = useCallback(() => {
     setDirection(0);
-    setCurrentDate(new Date());
+    setCurrentDate(siteNow());
   }, []);
 
   const handleDateSelect = useCallback((date: Date) => {
@@ -46,6 +62,7 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
   }, []);
 
   const handleEventClick = useCallback((event: CalendarEvent) => {
+    sheetTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setSelectedEvent(event);
     setIsSheetOpen(true);
   }, []);
@@ -61,8 +78,12 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
     [handleNext, handlePrevious]
   );
 
+  const CalendarView = view === "week"
+    ? (isMobile ? MobileWeekView : WeekView)
+    : (isMobile ? MobileMonthView : MonthView);
+
   return (
-    <div className="flex flex-col bg-background md:h-full">
+    <div className="flex flex-col bg-[#191421] md:h-full">
       <CalendarHeader
         currentDate={currentDate}
         view={view}
@@ -72,56 +93,20 @@ export function EventCalendar({ events, initialDate = new Date() }: EventCalenda
         onViewChange={setView}
       />
 
-      {view === "week" ? (
-        <>
-          <div className="hidden md:flex flex-1 flex-col min-h-0 overflow-hidden">
-            <WeekView
-              currentDate={currentDate}
-              events={events}
-              direction={direction}
-              onDateSelect={handleDateSelect}
-              onEventClick={handleEventClick}
-              onSwipe={handleSwipe}
-            />
-          </div>
-          <div className="md:hidden w-full max-w-full overflow-x-hidden">
-            <MobileWeekView
-              currentDate={currentDate}
-              events={events}
-              direction={direction}
-              onDateSelect={handleDateSelect}
-              onEventClick={handleEventClick}
-              onSwipe={handleSwipe}
-            />
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="hidden md:flex flex-1 flex-col min-h-0 overflow-hidden">
-            <MonthView
-              currentDate={currentDate}
-              events={events}
-              direction={direction}
-              onDateSelect={handleDateSelect}
-              onEventClick={handleEventClick}
-              onSwipe={handleSwipe}
-            />
-          </div>
-          <div className="md:hidden w-full max-w-full overflow-x-hidden">
-            <MobileMonthView
-              currentDate={currentDate}
-              events={events}
-              direction={direction}
-              onDateSelect={handleDateSelect}
-              onEventClick={handleEventClick}
-              onSwipe={handleSwipe}
-            />
-          </div>
-        </>
-      )}
+      <div className={isMobile ? "w-full max-w-full overflow-x-hidden" : "flex flex-1 flex-col min-h-0 overflow-hidden"}>
+        <CalendarView
+          currentDate={currentDate}
+          events={events}
+          direction={direction}
+          onDateSelect={handleDateSelect}
+          onEventClick={handleEventClick}
+          onSwipe={handleSwipe}
+        />
+      </div>
 
       <EventDetailSheet
         event={selectedEvent}
+        returnFocusRef={sheetTriggerRef}
         isOpen={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
       />

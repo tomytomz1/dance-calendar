@@ -5,37 +5,10 @@ import { generateInstancesForEvent } from "@/lib/recurrence";
 import { generateUniqueEventSlug } from "@/lib/slug";
 import { organizerEditStatus } from "@/lib/event-status";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
-import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
+import { updateEventSchema } from "@/lib/event-validation";
 import { z } from "zod";
-
-const recurrenceSchema = z.object({
-  frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]),
-  interval: z.number().min(1).default(1),
-  daysOfWeek: z.array(z.number()).optional(),
-  until: z.string().transform((val) => new Date(val)).optional(),
-  count: z.number().optional(),
-  monthlyPattern: z.enum(["BY_DATE", "BY_WEEKDAY"]).optional(),
-  monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
-  monthlyWeeks: z.array(z.number()).optional(),
-});
-
-const updateEventSchema = z.object({
-  title: z.string().min(3).optional(),
-  description: z.string().optional(),
-  danceStyles: z.array(z.string()).min(1).optional(),
-  venue: z.string().min(2).optional(),
-  address: z.string().min(5).optional(),
-  city: z.string().min(2).optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  startTime: z.string().transform((val) => new Date(val)).optional(),
-  endTime: z.string().transform((val) => new Date(val)).optional(),
-  imageUrl: optionalEmptyOrHttpUrl,
-  ticketUrl: optionalEmptyOrHttpUrl,
-  price: z.string().optional(),
-  status: z.enum(["DRAFT", "PENDING_APPROVAL", "APPROVED", "CANCELLED"]).optional(),
-  recurrence: recurrenceSchema.optional(),
-});
+import { canManageEvents } from "@/lib/event-authorization";
+import { invalidatePublicEventPages } from "@/lib/public-event-cache";
 
 export async function GET(
   request: Request,
@@ -115,10 +88,13 @@ export async function PATCH(
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (!canManageEvents(session.user)) {
+      return NextResponse.json({ error: "Verified organizer access is required" }, { status: 403 });
+    }
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { organizerId: true, status: true },
+      select: { organizerId: true, status: true, slug: true, startTime: true, endTime: true, isRecurring: true, recurrenceRule: true },
     });
 
     if (!event) {
@@ -143,6 +119,13 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateEventSchema.parse(body);
 
+    if ((validatedData.endTime ?? event.endTime) <= (validatedData.startTime ?? event.startTime)) {
+      return NextResponse.json({ error: "End must be after the start." }, { status: 400 });
+    }
+    if ((validatedData.isRecurring ?? event.isRecurring) && !validatedData.recurrence && !event.recurrenceRule) {
+      return NextResponse.json({ error: "A recurring event requires a recurrence rule." }, { status: 400 });
+    }
+
     // Organizer edits stay published (no admin re-review); admins set any status.
     const nextStatus = isAdmin
       ? validatedData.status
@@ -152,7 +135,8 @@ export async function PATCH(
     delete eventData.status; // applied via nextStatus below
 
     let slug: string | null | undefined;
-    if (eventData.title) {
+    // Titles can change without invalidating shared links and cached listings.
+    if (eventData.title && !event.slug) {
       slug = await generateUniqueEventSlug(eventData.title);
     }
 
@@ -160,6 +144,8 @@ export async function PATCH(
       where: { id },
       data: {
         ...eventData,
+        ...(eventData.imageUrl === "" && { imageUrl: null }),
+        ...(eventData.ticketUrl === "" && { ticketUrl: null }),
         ...(slug !== undefined && { slug }),
         ...(nextStatus !== undefined && { status: nextStatus }),
         ...(recurrence && {
@@ -201,28 +187,18 @@ export async function PATCH(
     });
 
     const shouldRegenerateInstances =
-      updatedEvent.isRecurring &&
-      updatedEvent.recurrenceRule &&
+      (updatedEvent.isRecurring || event.isRecurring) &&
       ((nextStatus === "APPROVED" && event.status !== "APPROVED") ||
-        !!recurrence);
+        !!recurrence || !!eventData.startTime || !!eventData.endTime ||
+        (eventData.isRecurring !== undefined && eventData.isRecurring !== event.isRecurring));
 
     if (shouldRegenerateInstances) {
-      try {
-        await prisma.eventInstance.deleteMany({
-          where: {
-            eventId: id,
-            startTime: { gt: new Date() },
-          },
-        });
-      } catch (err) {
-        console.error("Failed to clear existing future instances:", err);
-      }
-
-      await generateInstancesForEvent(id).catch((err) =>
+      await generateInstancesForEvent(id, { replaceFuture: true }).catch((err) =>
         console.error("Failed to generate instances on update:", err)
       );
     }
 
+    invalidatePublicEventPages(updatedEvent);
     return NextResponse.json(updatedEvent);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -251,10 +227,13 @@ export async function DELETE(
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (!canManageEvents(session.user)) {
+      return NextResponse.json({ error: "Verified organizer access is required" }, { status: 403 });
+    }
 
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { organizerId: true },
+      select: { organizerId: true, slug: true },
     });
 
     if (!event) {
@@ -280,6 +259,7 @@ export async function DELETE(
       where: { id },
     });
 
+    invalidatePublicEventPages({ id, slug: event.slug });
     return NextResponse.json({ message: "Event deleted successfully" });
   } catch (error) {
     console.error("Error deleting event:", error);

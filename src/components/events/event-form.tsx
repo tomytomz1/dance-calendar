@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format, addHours } from "date-fns";
+import { format, addHours, startOfDay } from "date-fns";
+import { toSiteWallClock, fromSiteWallClock, siteNow, formatInSiteTimeZone } from "@/lib/timezone";
+import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,13 +42,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { DANCE_STYLES, RECURRENCE_FREQUENCY_LABELS } from "@/lib/types";
 import { ConflictWarning } from "./conflict-warning";
+import { eventFormRecurrence } from "@/lib/event-form-recurrence";
+import { parseTimeTo12Hour, toHHmm } from "@/lib/event-time";
 import type { Event, RecurrenceRule } from "@prisma/client";
 
 const eventFormSchema = z.object({
@@ -60,8 +63,8 @@ const eventFormSchema = z.object({
   startTime: z.string().min(1, "Start time is required"),
   endDate: z.date({ message: "End date is required" }),
   endTime: z.string().min(1, "End time is required"),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  ticketUrl: z.string().url().optional().or(z.literal("")),
+  imageUrl: optionalEmptyOrHttpUrl,
+  ticketUrl: optionalEmptyOrHttpUrl,
   price: z.string().optional(),
   isRecurring: z.boolean(),
   recurrenceFrequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY"]).optional(),
@@ -69,41 +72,25 @@ const eventFormSchema = z.object({
   monthlyPattern: z.enum(["BY_DATE", "BY_WEEKDAY"]).optional(),
   monthlyDayOfWeek: z.number().int().min(0).max(6).optional(),
   monthlyWeeks: z.array(z.number()).optional(),
+}).superRefine((data, ctx) => {
+  try {
+    const start = fromSiteWallClock(data.startDate, data.startTime);
+    const end = fromSiteWallClock(data.endDate, data.endTime);
+    if (end <= start) ctx.addIssue({ code: "custom", path: ["endTime"], message: "End must be after the start." });
+  } catch (error) {
+    ctx.addIssue({ code: "custom", path: ["startTime"], message: (error as Error).message });
+  }
+  if (data.isRecurring && data.recurrenceFrequency === "MONTHLY" && data.monthlyPattern === "BY_WEEKDAY" &&
+      (data.monthlyDayOfWeek === undefined || !data.monthlyWeeks?.length)) ctx.addIssue({ code: "custom", path: ["monthlyWeeks"], message: "Choose a weekday and at least one week." });
+  if (data.isRecurring && !data.recurrenceFrequency) ctx.addIssue({ code: "custom", path: ["recurrenceFrequency"], message: "Choose a recurrence frequency." });
+  if (data.recurrenceUntil && startOfDay(data.recurrenceUntil) < startOfDay(data.startDate)) ctx.addIssue({ code: "custom", path: ["recurrenceUntil"], message: "Recurrence end date must be on or after the start." });
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
 const HOUR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const MINUTE_OPTIONS = ["00", "15", "30", "45"];
+const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, minute) => String(minute).padStart(2, "0"));
 const PERIOD_OPTIONS = ["AM", "PM"] as const;
-
-function parseTimeTo12Hour(hhmm: string): {
-  hour: number;
-  minute: string;
-  period: "AM" | "PM";
-} {
-  const [h, m] = (hhmm || "00:00").split(":").map(Number);
-  const h24 = h ?? 0;
-  const min = m ?? 0;
-  const minute = ["00", "15", "30", "45"][Math.round(min / 15) % 4] ?? "00";
-  if (h24 === 0)
-    return { hour: 12, minute, period: "AM" };
-  if (h24 === 12)
-    return { hour: 12, minute, period: "PM" };
-  if (h24 < 12)
-    return { hour: h24, minute, period: "AM" };
-  return { hour: h24 - 12, minute, period: "PM" };
-}
-
-function toHHmm(hour: number, minute: string, period: "AM" | "PM"): string {
-  let h24: number;
-  if (period === "AM") {
-    h24 = hour === 12 ? 0 : hour;
-  } else {
-    h24 = hour === 12 ? 12 : hour + 12;
-  }
-  return `${h24.toString().padStart(2, "0")}:${minute}`;
-}
 
 interface EventFormProps {
   event?: Event & { recurrenceRule?: RecurrenceRule | null };
@@ -111,6 +98,7 @@ interface EventFormProps {
 }
 
 export function EventForm({ event, mode }: EventFormProps) {
+  const timeControlId = useId();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasConflicts, setHasConflicts] = useState(false);
@@ -132,17 +120,17 @@ export function EventForm({ event, mode }: EventFormProps) {
         venue: event.venue,
         address: event.address,
         city: event.city,
-        startDate: new Date(event.startTime),
-        startTime: format(new Date(event.startTime), "HH:mm"),
-        endDate: new Date(event.endTime),
-        endTime: format(new Date(event.endTime), "HH:mm"),
+        startDate: toSiteWallClock(event.startTime),
+        startTime: formatInSiteTimeZone(event.startTime, "HH:mm"),
+        endDate: toSiteWallClock(event.endTime),
+        endTime: formatInSiteTimeZone(event.endTime, "HH:mm"),
         imageUrl: event.imageUrl || "",
         ticketUrl: event.ticketUrl || "",
         price: event.price || "",
         isRecurring: event.isRecurring,
         recurrenceFrequency: event.recurrenceRule?.frequency,
         recurrenceUntil: event.recurrenceRule?.until
-          ? new Date(event.recurrenceRule.until)
+          ? toSiteWallClock(event.recurrenceRule.until)
           : undefined,
         monthlyPattern: event.recurrenceRule?.monthlyPattern ?? "BY_DATE",
         monthlyDayOfWeek: event.recurrenceRule?.monthlyDayOfWeek ?? undefined,
@@ -184,10 +172,7 @@ export function EventForm({ event, mode }: EventFormProps) {
 
   const getDateTime = (date: Date | undefined, time: string | undefined): Date | null => {
     if (!date || !time?.trim()) return null;
-    const dateTime = new Date(date);
-    const [hours, minutes] = (time || "00:00").split(":").map(Number);
-    dateTime.setHours(hours ?? 0, minutes ?? 0);
-    return dateTime;
+    try { return fromSiteWallClock(date, time); } catch { return null; }
   };
 
   const startDateTime = getDateTime(watchedStartDate, watchedStartTime);
@@ -216,20 +201,10 @@ export function EventForm({ event, mode }: EventFormProps) {
   async function onSubmit(data: EventFormValues) {
     setIsSubmitting(true);
 
-    const startDateTime = new Date(data.startDate);
-    const [startHours, startMinutes] = data.startTime.split(":").map(Number);
-    startDateTime.setHours(startHours, startMinutes);
+    const startDateTime = fromSiteWallClock(data.startDate, data.startTime);
+    const endDateTime = fromSiteWallClock(data.endDate, data.endTime);
 
-    const endDateTime = new Date(data.endDate);
-    const [endHours, endMinutes] = data.endTime.split(":").map(Number);
-    endDateTime.setHours(endHours, endMinutes);
-
-    const hasExistingRecurrence = !!event?.recurrenceRule;
-    const effectiveRecurrenceFrequency =
-      data.recurrenceFrequency ?? event?.recurrenceRule?.frequency;
-    const shouldSendRecurrence =
-      (data.isRecurring || hasExistingRecurrence) &&
-      !!effectiveRecurrenceFrequency;
+    const recurrence = eventFormRecurrence(data, event?.recurrenceRule);
 
     const payload = {
       title: data.title,
@@ -240,32 +215,11 @@ export function EventForm({ event, mode }: EventFormProps) {
       city: data.city,
       startTime: startDateTime.toISOString(),
       endTime: endDateTime.toISOString(),
-      imageUrl: data.imageUrl || undefined,
-      ticketUrl: data.ticketUrl || undefined,
+      imageUrl: data.imageUrl || "",
+      ticketUrl: data.ticketUrl || "",
       price: data.price,
       isRecurring: data.isRecurring,
-      ...(shouldSendRecurrence &&
-        effectiveRecurrenceFrequency && {
-          recurrence: {
-            frequency: effectiveRecurrenceFrequency,
-            interval: 1,
-            until: data.recurrenceUntil?.toISOString(),
-            ...(effectiveRecurrenceFrequency === "MONTHLY" && {
-              monthlyPattern:
-                data.monthlyPattern ??
-                event?.recurrenceRule?.monthlyPattern ??
-                "BY_DATE",
-              monthlyDayOfWeek:
-                data.monthlyDayOfWeek ??
-                event?.recurrenceRule?.monthlyDayOfWeek ??
-                undefined,
-              monthlyWeeks:
-                data.monthlyWeeks ??
-                event?.recurrenceRule?.monthlyWeeks ??
-                undefined,
-            }),
-          },
-        }),
+      ...(recurrence && { recurrence }),
     };
 
     try {
@@ -363,16 +317,9 @@ export function EventForm({ event, mode }: EventFormProps) {
                   </FormDescription>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {DANCE_STYLES.map((style) => (
-                      <Badge
-                        key={style}
-                        variant={
-                          selectedStyles.includes(style) ? "default" : "outline"
-                        }
-                        className="cursor-pointer text-sm py-1.5 px-3"
-                        onClick={() => toggleStyle(style)}
-                      >
-                        {style}
-                      </Badge>
+                      <Button type="button" key={style} aria-pressed={selectedStyles.includes(style)}
+                        variant={selectedStyles.includes(style) ? "default" : "outline"}
+                        className="min-h-11 text-sm" onClick={() => toggleStyle(style)}>{style}</Button>
                     ))}
                   </div>
                   <FormMessage />
@@ -384,7 +331,7 @@ export function EventForm({ event, mode }: EventFormProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Date & Time</CardTitle>
+            <CardTitle>Date & Time</CardTitle><p className="text-sm text-muted-foreground">All dates and times are Michigan time.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <ConflictWarning
@@ -421,7 +368,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent aria-label="Choose start date" className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
@@ -429,7 +376,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(date);
                             if (date) setStartDateOpen(false);
                           }}
-                          disabled={(date) => date < new Date()}
+                          disabled={(date) => date < startOfDay(siteNow())}
                           initialFocus
                         />
                       </PopoverContent>
@@ -448,8 +395,8 @@ export function EventForm({ event, mode }: EventFormProps) {
                   );
                   return (
                     <FormItem>
-                      <FormLabel>Start Time</FormLabel>
-                      <div className="flex gap-2">
+                      <FormLabel htmlFor={`${timeControlId}-startTime-hour`}>Start Time</FormLabel>
+                      <div className="flex min-w-0 gap-2">
                         <Select
                           value={String(hour)}
                           onValueChange={(v) =>
@@ -458,12 +405,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             )
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 flex-1">
+                          <FormControl id={`${timeControlId}-startTime-hour`}>
+                            <SelectTrigger aria-label="Start hour" className="h-12 min-w-0 flex-1">
                               <SelectValue placeholder="Hour" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {HOUR_OPTIONS.map((h) => (
                               <SelectItem key={h} value={String(h)}>
                                 {h}
@@ -477,12 +424,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(toHHmm(hour, v, period))
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 flex-1">
+                          <FormControl id={`${timeControlId}-startTime-minute`}>
+                            <SelectTrigger aria-label="Start minute" className="h-12 min-w-0 flex-1">
                               <SelectValue placeholder="Min" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {MINUTE_OPTIONS.map((m) => (
                               <SelectItem key={m} value={m}>
                                 {m}
@@ -496,12 +443,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(toHHmm(hour, minute, v))
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 w-24">
+                          <FormControl id={`${timeControlId}-startTime-period`}>
+                            <SelectTrigger aria-label="Start AM/PM" className="h-12 min-w-0 w-20 sm:w-24">
                               <SelectValue placeholder="AM/PM" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {PERIOD_OPTIONS.map((p) => (
                               <SelectItem key={p} value={p}>
                                 {p}
@@ -541,7 +488,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent aria-label="Choose end date" className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
                         <Calendar
                           mode="single"
                           selected={field.value}
@@ -549,7 +496,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(date);
                             if (date) setEndDateOpen(false);
                           }}
-                          disabled={(date) => date < new Date()}
+                          disabled={(date) => date < startOfDay(siteNow())}
                           initialFocus
                         />
                       </PopoverContent>
@@ -568,8 +515,8 @@ export function EventForm({ event, mode }: EventFormProps) {
                   );
                   return (
                     <FormItem>
-                      <FormLabel>End Time</FormLabel>
-                      <div className="flex gap-2">
+                      <FormLabel htmlFor={`${timeControlId}-endTime-hour`}>End Time</FormLabel>
+                      <div className="flex min-w-0 gap-2">
                         <Select
                           value={String(hour)}
                           onValueChange={(v) =>
@@ -578,12 +525,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             )
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 flex-1">
+                          <FormControl id={`${timeControlId}-endTime-hour`}>
+                            <SelectTrigger aria-label="End hour" className="h-12 min-w-0 flex-1">
                               <SelectValue placeholder="Hour" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {HOUR_OPTIONS.map((h) => (
                               <SelectItem key={h} value={String(h)}>
                                 {h}
@@ -597,12 +544,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(toHHmm(hour, v, period))
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 flex-1">
+                          <FormControl id={`${timeControlId}-endTime-minute`}>
+                            <SelectTrigger aria-label="End minute" className="h-12 min-w-0 flex-1">
                               <SelectValue placeholder="Min" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {MINUTE_OPTIONS.map((m) => (
                               <SelectItem key={m} value={m}>
                                 {m}
@@ -616,12 +563,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                             field.onChange(toHHmm(hour, minute, v))
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger className="h-12 w-24">
+                          <FormControl id={`${timeControlId}-endTime-period`}>
+                            <SelectTrigger aria-label="End AM/PM" className="h-12 min-w-0 w-20 sm:w-24">
                               <SelectValue placeholder="AM/PM" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {PERIOD_OPTIONS.map((p) => (
                               <SelectItem key={p} value={p}>
                                 {p}
@@ -665,7 +612,7 @@ export function EventForm({ event, mode }: EventFormProps) {
             />
 
             {isRecurring && (
-              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+              <div className="min-w-0 space-y-4 p-4 bg-muted/50 rounded-lg">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -678,11 +625,11 @@ export function EventForm({ event, mode }: EventFormProps) {
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger className="h-12">
+                            <SelectTrigger className="data-[size=default]:h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                               <SelectValue placeholder="Select frequency" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                             {Object.entries(RECURRENCE_FREQUENCY_LABELS).map(
                               ([value, label]) => (
                                 <SelectItem key={value} value={value}>
@@ -728,7 +675,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
+                          <PopoverContent aria-label="Choose recurrence end date" className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
                             <Calendar
                               mode="single"
                               selected={field.value}
@@ -737,7 +684,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                                 field.onChange(date);
                                 setRecurrenceUntilOpen(false);
                               }}
-                              disabled={(date) => date < new Date()}
+                              disabled={(date) => date < startOfDay(siteNow())}
                               initialFocus
                             />
                           </PopoverContent>
@@ -767,7 +714,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                 </div>
 
                 {recurrenceFrequency === "MONTHLY" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4 bg-background">
+                  <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-4 border rounded-lg p-4 bg-background">
                     <FormField
                       control={form.control}
                       name="monthlyPattern"
@@ -779,11 +726,11 @@ export function EventForm({ event, mode }: EventFormProps) {
                             defaultValue={field.value || "BY_DATE"}
                           >
                             <FormControl>
-                              <SelectTrigger className="h-12">
+                              <SelectTrigger className="data-[size=default]:h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                               <SelectItem value="BY_DATE">
                                 Same date every month
                               </SelectItem>
@@ -820,11 +767,11 @@ export function EventForm({ event, mode }: EventFormProps) {
                                 }
                               >
                                 <FormControl>
-                                  <SelectTrigger className="h-12">
+                                  <SelectTrigger className="data-[size=default]:h-auto min-h-12 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:text-left">
                                     <SelectValue placeholder="Select day" />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent position="popper" className="max-h-60 max-w-[calc(100vw-2rem)]">
                                   <SelectItem value="0">Sunday</SelectItem>
                                   <SelectItem value="1">Monday</SelectItem>
                                   <SelectItem value="2">Tuesday</SelectItem>
@@ -861,12 +808,12 @@ export function EventForm({ event, mode }: EventFormProps) {
                                     field.value?.includes(option.value) ??
                                     false;
                                   return (
-                                    <Badge
+                                    <Button type="button" aria-pressed={selected}
                                       key={option.value}
                                       variant={
                                         selected ? "default" : "outline"
                                       }
-                                      className="cursor-pointer px-3 py-1 text-sm"
+                                      className="min-h-11 px-3 py-1 text-sm"
                                       onClick={() => {
                                         const current = field.value || [];
                                         const next = selected
@@ -878,7 +825,7 @@ export function EventForm({ event, mode }: EventFormProps) {
                                       }}
                                     >
                                       {option.label}
-                                    </Badge>
+                                    </Button>
                                   );
                                 })}
                               </div>

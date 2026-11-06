@@ -12,6 +12,7 @@ import {
   type SeoEventRecord,
 } from "@/lib/seo";
 import type { CalendarEvent } from "@/lib/types";
+import { normalizeCityName, normalizeVenueName } from "@/lib/city-name";
 
 const seoEventSelect = {
   id: true,
@@ -55,9 +56,9 @@ function toListRecord(
     slug: event.slug,
     title: event.title,
     description: event.description,
-    venue: event.venue,
+    venue: normalizeVenueName(event.venue),
     address: event.address,
-    city: event.city,
+    city: normalizeCityName(event.city),
     danceStyles: event.danceStyles,
     startTime,
     endTime,
@@ -81,8 +82,8 @@ function expandEvent(
   const baseCalendar = {
     id: event.id,
     title: event.title,
-    venue: event.venue,
-    city: event.city,
+    venue: normalizeVenueName(event.venue),
+    city: normalizeCityName(event.city),
     danceStyles: event.danceStyles,
     status: event.status,
     isRecurring: event.isRecurring,
@@ -110,6 +111,7 @@ function expandEvent(
     monthlyPattern: rule.monthlyPattern ?? "BY_DATE",
     monthlyDayOfWeek: rule.monthlyDayOfWeek ?? undefined,
     monthlyWeeks: rule.monthlyWeeks ?? [],
+    horizon: rangeEnd,
   };
 
   const instances = generateRecurrenceInstances(
@@ -129,6 +131,7 @@ function expandEvent(
       start: instance.startTime,
       end: instance.endTime,
       instanceKey,
+      occurrenceStart: instance.startTime.toISOString(),
     });
     listEvents.push(
       toListRecord(event, instance.startTime, instance.endTime, instanceKey)

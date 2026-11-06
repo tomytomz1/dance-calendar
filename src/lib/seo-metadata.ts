@@ -9,6 +9,17 @@ export const NOINDEX_METADATA: Metadata = {
   },
 };
 
+/**
+ * Overriding `openGraph` in a page drops the image inherited from the root
+ * `opengraph-image`, so hub pages reference the branded site image explicitly.
+ */
+const DEFAULT_SHARE_IMAGE = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: `${SITE_NAME} — Find your rhythm. Find your people.`,
+};
+
 export function buildPublicPageMetadata(options: {
   title: string;
   description: string;
@@ -25,11 +36,13 @@ export function buildPublicPageMetadata(options: {
       url: `${SITE_URL}${canonical}`,
       siteName: SITE_NAME,
       type: "website",
+      images: [DEFAULT_SHARE_IMAGE],
     },
     twitter: {
       card: "summary_large_image",
       title: options.title,
       description: options.description,
+      images: [DEFAULT_SHARE_IMAGE.url],
     },
   };
 }

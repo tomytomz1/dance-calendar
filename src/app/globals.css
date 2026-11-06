@@ -140,3 +140,34 @@ input::-ms-clear {
     font-family: var(--font-display);
   }
 }
+/* Michigan Dance Life — shared nightlife design system */
+:root, .dark {
+  --radius: 0.75rem;
+  --background: #0D101B; --foreground: #F7EFE5;
+  --card: #1D1726; --card-foreground: #F7EFE5;
+  --popover: #241B2E; --popover-foreground: #F7EFE5;
+  --primary: #F46157; --primary-foreground: #160E18;
+  --secondary: #34273B; --secondary-foreground: #F7EFE5;
+  --muted: #292337; --muted-foreground: #CDBDCA;
+  --accent: #9353A8; --accent-foreground: #FFFFFF;
+  --border: #5E4B65; --input: #4B3A51; --ring: #FF958D;
+  --sidebar: #171421; --sidebar-foreground: #F7EFE5;
+  --sidebar-primary: #F46157; --sidebar-primary-foreground: #160E18;
+  --sidebar-accent: #34273B; --sidebar-accent-foreground: #F7EFE5;
+  --sidebar-border: #5E4B65; --sidebar-ring: #FF958D;
+}
+.font-display { font-family: var(--font-geist-sans), system-ui, sans-serif; }
+.mdl-hero { background: #10101D; }
+.mdl-hero-image {
+  object-position: center 42%;
+}
+.mdl-hero-shade {
+  background: linear-gradient(90deg,rgba(10,10,18,.91) 0%,rgba(10,10,18,.79) 35%,rgba(10,10,18,.28) 73%,rgba(10,10,18,.1) 100%);
+}
+@media (max-width: 640px) {
+  .mdl-hero-image { object-position: center 27%; }
+  .mdl-hero-shade { background: linear-gradient(0deg,rgba(10,10,18,.98),rgba(10,10,18,.73) 50%,rgba(10,10,18,.08)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}
