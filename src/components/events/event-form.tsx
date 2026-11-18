@@ -10,6 +10,7 @@ import { toSiteWallClock, fromSiteWallClock, siteNow, formatInSiteTimeZone } fro
 import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
 import { CalendarIcon } from "lucide-react";
 import { ImageUrlFeedback } from "@/components/events/image-url-feedback";
+import { EventImageUpload } from "@/components/events/event-image-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -952,18 +953,25 @@ export function EventForm({ event, mode }: EventFormProps) {
               name="imageUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Event Image URL</FormLabel>
+                  <FormLabel>Event photo or flyer</FormLabel>
+                  <FormDescription>
+                    Optional. Upload a photo from your phone or computer, or paste a direct
+                    link to an image file.
+                  </FormDescription>
+                  <EventImageUpload
+                    value={field.value}
+                    onChange={(url) =>
+                      form.setValue("imageUrl", url, { shouldDirty: true, shouldValidate: true })
+                    }
+                  />
                   <FormControl>
                     <Input
-                      placeholder="https://..."
+                      placeholder="…or paste an image link (https://…/photo.jpg)"
+                      aria-label="Image link"
                       {...field}
                       className="h-12"
                     />
                   </FormControl>
-                  <FormDescription>
-                    Optional. Paste a direct link to the flyer image (it usually ends in .jpg,
-                    .png or .webp). Photo-sharing page links can&apos;t be shown.
-                  </FormDescription>
                   <ImageUrlFeedback value={field.value} />
                   <FormMessage />
                 </FormItem>
