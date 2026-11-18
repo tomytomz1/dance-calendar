@@ -4,13 +4,31 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
 import { optionalProfileWebsite } from "@/lib/zod-url";
+import { normalizeWebsite, PROFILE_LIMITS } from "@/lib/profile-input";
 import { z } from "zod";
 
 const updateProfileSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").optional(),
-  bio: z.string().max(500, "Bio must be 500 characters or less").optional().nullable(),
-  phone: z.string().max(20).optional().nullable(),
-  website: optionalProfileWebsite,
+  name: z
+    .string()
+    .trim()
+    .min(PROFILE_LIMITS.nameMin, `Name must be at least ${PROFILE_LIMITS.nameMin} characters`)
+    .optional(),
+  bio: z
+    .string()
+    .max(PROFILE_LIMITS.bioMax, `Bio must be ${PROFILE_LIMITS.bioMax} characters or less`)
+    .optional()
+    .nullable(),
+  phone: z
+    .string()
+    .trim()
+    .max(PROFILE_LIMITS.phoneMax, `Phone must be ${PROFILE_LIMITS.phoneMax} characters or less`)
+    .optional()
+    .nullable(),
+  // Accept "yourstudio.com" by adding https:// before validating.
+  website: z.preprocess(
+    (v) => (typeof v === "string" ? normalizeWebsite(v) : v),
+    optionalProfileWebsite
+  ),
 });
 
 export async function GET() {
@@ -100,8 +118,12 @@ export async function PATCH(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const zodError = error as z.ZodError;
+      const issue = zodError.issues[0];
       return NextResponse.json(
-        { error: zodError.issues[0]?.message || "Validation error" },
+        {
+          error: issue?.message || "Validation error",
+          field: typeof issue?.path[0] === "string" ? issue.path[0] : undefined,
+        },
         { status: 400 }
       );
     }
