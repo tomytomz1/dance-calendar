@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { invalidateOrganizerPublicPages } from "@/lib/public-event-cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
@@ -109,9 +109,14 @@ export async function PATCH(request: Request) {
       },
     });
 
-    // Organizer names appear on cached pages (e.g. the homepage); refresh them.
+    // Organizer names appear on every public page that lists their events
+    // (homepage, calendar, lists, hubs, event pages); refresh all of them.
     if (validatedData.name !== undefined && updatedUser.role !== "USER") {
-      revalidatePath("/");
+      const organizerEvents = await prisma.event.findMany({
+        where: { organizerId: updatedUser.id },
+        select: { id: true, slug: true },
+      });
+      invalidateOrganizerPublicPages(organizerEvents);
     }
 
     return NextResponse.json(updatedUser);
