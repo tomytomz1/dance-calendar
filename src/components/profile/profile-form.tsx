@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +37,9 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
   const [phone, setPhone] = useState(initialData.phone || "");
   const [website, setWebsite] = useState(initialData.website || "");
   const [isSaving, setIsSaving] = useState(false);
+  const router = useRouter();
+  const { update: updateSession } = useSession();
+  const isOrganizer = initialData.role !== "USER";
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -51,6 +56,11 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
       });
 
       if (response.ok) {
+        const updated = await response.json();
+        // Refresh the login session so the header/menu shows the new name
+        // right away, then re-render server data on this page.
+        await updateSession({ name: updated.name });
+        router.refresh();
         toast.success("Profile updated successfully");
       } else {
         const data = await response.json();
@@ -125,13 +135,20 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">
+              {isOrganizer ? "Name / Academy or Studio Name" : "Name"}
+            </Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
+              placeholder={isOrganizer ? "Your academy, studio or organizer name" : "Your name"}
             />
+            {isOrganizer && (
+              <p className="text-xs text-muted-foreground">
+                Shown as the organizer on all of your events.
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
