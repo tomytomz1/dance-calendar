@@ -9,6 +9,7 @@ import { format, addHours, startOfDay } from "date-fns";
 import { toSiteWallClock, fromSiteWallClock, siteNow, formatInSiteTimeZone } from "@/lib/timezone";
 import { optionalEmptyOrHttpUrl } from "@/lib/zod-url";
 import { CalendarIcon } from "lucide-react";
+import { ImageUrlFeedback } from "@/components/events/image-url-feedback";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -960,8 +961,10 @@ export function EventForm({ event, mode }: EventFormProps) {
                     />
                   </FormControl>
                   <FormDescription>
-                    Link to event flyer or image (optional)
+                    Optional. Paste a direct link to the flyer image (it usually ends in .jpg,
+                    .png or .webp). Photo-sharing page links can&apos;t be shown.
                   </FormDescription>
+                  <ImageUrlFeedback value={field.value} />
                   <FormMessage />
                 </FormItem>
               )}

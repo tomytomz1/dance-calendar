@@ -6,6 +6,9 @@ describe("organizerImageUrl", () => {
     expect(organizerImageUrl("https://www.facebook.com/profile.php?id=61586929481648")).toBeNull();
     expect(organizerImageUrl("https://www.facebook.com/share/1GJ8y7bh6t/?mibextid=wwXIfr")).toBeNull();
     expect(organizerImageUrl("https://facebook.com/events/s/bachata-night/123")).toBeNull();
+    // iCloud / Google Photos share links open a web page, not the image
+    expect(organizerImageUrl("https://share.icloud.com/photos/060hwYPuacgWX0x9IEEnVKplQ")).toBeNull();
+    expect(organizerImageUrl("https://photos.app.goo.gl/AbCdEf123")).toBeNull();
   });
 
   it("accepts image files and known image CDNs", () => {
