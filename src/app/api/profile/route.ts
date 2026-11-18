@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimitOr429 } from "@/lib/api-rate-limit";
@@ -89,6 +90,11 @@ export async function PATCH(request: Request) {
         createdAt: true,
       },
     });
+
+    // Organizer names appear on cached pages (e.g. the homepage); refresh them.
+    if (validatedData.name !== undefined && updatedUser.role !== "USER") {
+      revalidatePath("/");
+    }
 
     return NextResponse.json(updatedUser);
   } catch (error) {

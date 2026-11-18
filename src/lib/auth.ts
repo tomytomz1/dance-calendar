@@ -119,16 +119,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.verified = (user as { verified: boolean }).verified;
       }
 
-      if (trigger === "update" && session) {
+      // Role/verified are always re-read from the DB below; never trust them
+      // from a client-supplied update payload.
+      if (trigger === "update" && typeof session?.name === "string") {
         token.name = session.name;
-        token.role = session.role;
-        token.verified = session.verified;
       }
 
       if (token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { id: true, role: true, verified: true, password: true },
+          select: { id: true, name: true, role: true, verified: true, password: true },
         });
         if (!dbUser) {
           return null;
@@ -138,6 +138,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const version = createHash('sha256').update(dbUser.password ?? 'passwordless').digest('hex');
         if (user) token.credentialVersion = version;
         else if (token.credentialVersion !== version) return null;
+        token.name = dbUser.name;
         token.role = dbUser.role;
         token.verified = dbUser.verified;
       }
